@@ -1,14 +1,14 @@
 '''
 Author: ChZheng
 Date: 2024-12-13 16:21:49
-LastEditTime: 2024-12-13 17:16:03
+LastEditTime: 2024-12-17 16:09:31
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/qushu.py
 '''
 
 挖掘ds - spark3-lzw - spark3
-shell:
+#shell:
 
 source /etc/profile
 cd `dirname $0`
@@ -20,12 +20,12 @@ sql_file = abtest-qushu-check/test.sql
 sh abtest-qushu-check/sql_execute.sh $sql_file
 exit 0
 
-tes.sql:
+# tes.sql:
 
 select count(*) from sdms_re_dw.d_cabs_001_events_all_a where drt = '';
 
 
-sql_executor.py
+# sql_executor.py
 
 import os
 import sys
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     print("sql results have been stored in hdfs address :{} successfully!".format(out_put))
 
 
-sql_execute.sh
+# sql_execute.sh
 
 #!/bin/bash
 #use timestamp to avoid file name conflict
@@ -130,7 +130,7 @@ echo "======================get res ==================="
 echo "--------------------start querying yarn logs for ${application_id}--------------------------"
 
 
-dtf check
+# dtf check
 
 import pandas as pd
 
