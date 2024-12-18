@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2024-12-13 16:21:49
-LastEditTime: 2024-12-17 16:09:31
+LastEditTime: 2024-12-18 17:14:06
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/qushu.py
@@ -143,3 +143,12 @@ print(df)
 信随行  zdjx_cuijunlong  http_test message_end_wechat
 
 curl -X POST -H "Content-Type: application/json" -d  '{"sender":[""],"receivers":"gonghao","body":"通用技术组 wechat测试--[中信大脑推理平台]"}' http://26.7.31.220:29494/send_wechat
+
+
+keytab  选没有后缀的  cabs 的
+
+worker分组选 kde
+
+sql没有被覆盖
+
+sql 执行取数有问题
