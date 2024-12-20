@@ -1,30 +1,10 @@
-'''
-Author: ChZheng
-Date: 2024-12-18 19:43:32
-LastEditTime: 2024-12-18 19:43:33
-LastEditors: ChZheng
-Description:
-FilePath: /code/ABTest/qushu_check.py
-'''
-import subprocess
 import os
+import sys
 import requests
 import pandas as pd
 from pyspark.sql import SparkSession
 from datetime import datetime, timedelta
-
-# 初始化 keytab
-def init_keytab():
-    print("Initializing keytab...")
-    subprocess.run(["sh", "/root/init_keytab.sh"], check=True)
-
-# Kerberos 认证
-kerberos_user = "your_user@YOUR_REALM"
-keytab_path = "/path/to/your/keytab"
-
-def kerberos_authenticate():
-    cmd = f"kinit -kt {keytab_path} {kerberos_user}"
-    subprocess.run(cmd, check=True)
+import subprocess
 
 # 获取昨天的日期
 yesterday_date = (datetime.now() - timedelta(1)).strftime('%Y%m%d')
@@ -36,22 +16,22 @@ dtf_file = f"{dtf_dir}/dtf_file_{yesterday_date}.dtf"
 # 设置今天日期
 today_date = datetime.now().strftime('%Y%m%d')
 
-# 创建 Spark 会话
-def create_spark_session():
-    spark = SparkSession.builder \
-        .appName("DataLakeValidation") \
-        .enableHiveSupport() \
-        .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-        .config("spark.hadoop.hive.metastore.uris", "thrift://metastore_host:port") \
-        .config("spark.yarn.access.hadoopFileSystems", "hdfs://namenode_host:8020") \
-        .config("spark.hadoop.security.authentication", "kerberos") \
-        .config("spark.yarn.keytab", keytab_path) \
-        .config("spark.yarn.principal", kerberos_user) \
-        .getOrCreate()
+# 初始化 Spark 会话
+spark = SparkSession.builder \
+    .appName("DataLakeValidation") \
+    .enableHiveSupport() \
+    .getOrCreate()
 
-    return spark
-
-spark = create_spark_session()
+# 执行初始化 keytab 脚本
+def init_keytab():
+    try:
+        print("Initializing keytab...")
+        result = subprocess.run(["sh", "/root/init_keytab.sh"], check=True, capture_output=True, text=True)
+        print("Keytab initialization successful.")
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error during keytab initialization: {e.stderr}")
+        sys.exit(1)
 
 # 执行 Hive SQL 查询
 def get_hive_row_count():
@@ -84,9 +64,6 @@ def send_alert(message):
 def main():
     # 初始化 keytab
     init_keytab()
-
-    # Kerberos 认证
-    kerberos_authenticate()
 
     # 获取 Hive 行数
     hive_count = get_hive_row_count()
