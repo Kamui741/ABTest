@@ -134,7 +134,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     if not step1_response:
         logger.error("❌ 第一步请求失败")
         return None
-    draft_id = step1_response.get("draft_id")
+    draft_id = step1_response.get("data",{}).get("draft_id")
 
     # Step 2: 配置实验指标
     step2_url = "http://28.4.136.142/api/step2"
@@ -154,26 +154,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     version_experiment_id = str(uuid.uuid4())
     step3_url = "http://28.4.136.142/api/step3"
     step3_payload = {
-        "versions": [
-            {
-                "type": 0,
-                "id": version_control_id,
-                "label": "对照版本",
-                "name": "对照版本",
-                "users": [],
-                "weight": 50,
-                "config": {"3": "3"}
-            },
-            {
-                "type": 1,
-                "id": version_experiment_id,
-                "label": "实验版本",
-                "name": "实验版本",
-                "users": [],
-                "weight": 50,
-                "config": {"3": "3"}
-            }
-        ],
+        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
         "app": app_id,
         "draft_id": draft_id
     }
@@ -188,12 +169,12 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
         "skip_verificationh": False,
         "is_start": True,
         "distribute": True,
-        "versions": step3_payload["versions"],
-        "filter_rule": [],
-        "layer_info": {"layer_id": -1, "version_resource": 1},
+        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
+        "filter_rule":"[]",
+        "layer_info":f"""{{"layer_id": -1,"version_resource":1}}""",
         "app": app_id,
         "draft_id": draft_id,
-        "version_freeze_status": 0
+        "version_freeze_status":0
     }
     step4_response = post_data(step4_url, json_data=step4_payload)
     if not step4_response:
@@ -219,3 +200,21 @@ if __name__ == "__main__":
     put_url = "http://28.4.136.142/api/example_put"
     put_json = {"update_key": "new_value"}
     response = put_data(put_url, json_data=put_json)
+
+    #创建实验
+    response    = create_experiment("abtest11",7,"ssid",10000305)
+
+    # 获取实验配置 url get
+    # https://28.4.136.142/datatester/api/v2/flight/view?flight_id=705&is_duplicate=false
+    # 获取指标列表 get
+    # https://28.4.136.142/datatester/api/v2/app/10000305/metric/list?keyword=&status=1&is_required=-1&need_page=1&page_size=10
+    #修改实验状态 put
+    # https://28.4.136.142/datatester/api/v2/flight/launch   payload = {"flight_id": 705}
+    # https://28.4.136.142/datatester/api/v2/flight/stop   payload = {"flight_id": 705}
+
+    #计算实验指标并返回指标报告
+    # https://28.4.136.142/datatester/api/v2/app/10000305/flight/705/rich-metric-report?report_type=five_minute&start_ts=1704166400&end_ts=1704252800&traceData=cf19f8e8-9c5d-4e8a-9e6d-9a8e8e8e8e8e
+    #获取互斥组列表
+    # https://28.4.136.142/datatester/api/v2/app/10000305/layer/list?keyword=&status=1&need_page=1&page_size=10&page=1&need_default=false
+
+    print(response)

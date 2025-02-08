@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-01-17 17:47:22
-LastEditTime: 2025-02-07 15:10:26
+LastEditTime: 2025-02-08 16:43:52
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/requestnew.py
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 login_url = "http://localhost:8000/api/v1/login"
 target_url = "http://localhost:8000/api/v1/target"
-username = os.getenv("USERNAME","admin")
+username = os.getenv("EMAIL","admin")
 password = os.getenv("PASSWORD","admin123")
 
 session_file= "sessionid.txt"
