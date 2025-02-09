@@ -183,6 +183,64 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
 
     return step4_response
 
+def get_flight_config(flight_id: int, is_duplicate: bool = False):
+    """ 获取实验配置 """
+    url = f"https://28.4.136.142/datatester/api/v2/flight/view"
+    params = {"flight_id": flight_id, "is_duplicate": str(is_duplicate).lower()}
+    return fetch_data(url, params=params)
+
+
+def get_metric_list(app_id: int, keyword: str = "", status: int = 1, is_required: int = -1, need_page: int = 1, page_size: int = 10):
+    """ 获取指标列表 """
+    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/metric/list"
+    params = {
+        "keyword": keyword,
+        "status": status,
+        "is_required": is_required,
+        "need_page": need_page,
+        "page_size": page_size
+    }
+    return fetch_data(url, params=params)
+
+
+def update_flight_status(flight_id: int, action: str):
+    """ 修改实验状态 (启动/停止) """
+    if action not in ["launch", "stop"]:
+        logger.error("❌ Invalid action. Use 'launch' or 'stop'.")
+        return None
+
+    url = f"https://28.4.136.142/datatester/api/v2/flight/{action}"
+    payload = {"flight_id": flight_id}
+    return put_data(url, json_data=payload)
+
+
+def get_experiment_report(app_id: int, flight_id: int, report_type: str, start_ts: int, end_ts: int, trace_data: str):
+    """ 计算实验指标并返回指标报告 """
+    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/flight/{flight_id}/rich-metric-report"
+    params = {
+        "report_type": report_type,
+        "start_ts": start_ts,
+        "end_ts": end_ts,
+        "traceData": trace_data
+    }
+    return fetch_data(url, params=params)
+
+
+def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_page: int = 1, page_size: int = 10, page: int = 1, need_default: bool = False):
+    """ 获取互斥组列表 """
+    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/layer/list"
+    params = {
+        "keyword": keyword,
+        "status": status,
+        "need_page": need_page,
+        "page_size": page_size,
+        "page": page,
+        "need_default": str(need_default).lower()
+    }
+    return fetch_data(url, params=params)
+
+
+# 接口代理层程序
 
 
 if __name__ == "__main__":
@@ -218,3 +276,30 @@ if __name__ == "__main__":
     # https://28.4.136.142/datatester/api/v2/app/10000305/layer/list?keyword=&status=1&need_page=1&page_size=10&page=1&need_default=false
 
     print(response)
+
+    # 获取实验配置
+    config = get_flight_config(flight_id=705)
+    print(config)
+
+    # 获取指标列表
+    metrics = get_metric_list(app_id=10000305)
+    print(metrics)
+
+    # 启动实验
+    response = update_flight_status(flight_id=705, action="launch")
+    print(response)
+
+    # 计算实验指标
+    report = get_experiment_report(
+        app_id=10000305,
+        flight_id=705,
+        report_type="five_minute",
+        start_ts=1704166400,
+        end_ts=1704252800,
+        trace_data="cf19f8e8-9c5d-4e8a-9e6d-9a8e8e8e8e8e"
+    )
+    print(report)
+
+    # 获取互斥组列表
+    mutex_groups = get_mutex_group_list(app_id=10000305)
+    print(mutex_groups)
