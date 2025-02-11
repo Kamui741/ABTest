@@ -1,3 +1,11 @@
+'''
+Author: ChZheng
+Date: 2025-02-11 16:59:56
+LastEditTime: 2025-02-11 16:59:57
+LastEditors: ChZheng
+Description:
+FilePath: /code/ABTest/api/abtequestv3.py
+'''
 import requests
 import os
 import logging
@@ -5,33 +13,34 @@ import uuid
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Callable
-from functools import wraps
-import json
-import logging
-from typing import Dict, Any, Optional
+from functools import wraps, lru_cache
 from pathlib import Path
 
 # ================== 基础配置 ==================
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-logger = logging.getLogger('SimpleMapper')
-# ================== 一期功能实现 ==================
 
+# ================== 一期功能实现 ==================
 class SessionManager:
+    """一期会话管理器"""
     def __init__(self, login_url: str, session_file: str):
         self.login_url = login_url
         self.session_file = session_file
 
     def save_sessionid(self, sessionid: str):
+        """保存会话ID"""
         with open(self.session_file, "w") as f:
             f.write(sessionid)
         logger.info(f"Session ID saved to {self.session_file}")
 
     def load_sessionid(self) -> Optional[str]:
+        """加载会话ID"""
         if not os.path.exists(self.session_file):
-            logger.warning(f"Session ID file {self.session_file} not found,     attempting to log in.")
-            return self.login()  # 直接登录并获取新的 sessionid
-
+            logger.warning(f"Session ID file {self.session_file} not found, attempting to log in.")
+            return self.login()
         try:
             with open(self.session_file, "r") as f:
                 sessionid = f.read().strip()
@@ -39,10 +48,10 @@ class SessionManager:
                 return sessionid
         except Exception as e:
             logger.error(f"❌ Error loading session ID file: {e}")
-            return self.login()  # 读取失败时重新登录
+            return self.login()
 
     def _handle_response(self, response: requests.Response) -> Optional[Dict[str, Any]]:
-        """ 统一处理 HTTP 响应 """
+        """统一处理HTTP响应"""
         try:
             response_data = response.json()
         except requests.JSONDecodeError:
@@ -57,7 +66,7 @@ class SessionManager:
             return None
 
     def login(self) -> Optional[str]:
-        """ 登录并获取 session ID """
+        """登录并获取会话ID"""
         try:
             response = requests.post(self.login_url, json={"email": username, "password": password})
             response_data = self._handle_response(response)
@@ -72,7 +81,7 @@ class SessionManager:
         return None
 
     def validate_session(self, sessionid: str, test_url: str) -> bool:
-        """ 验证 session ID 是否有效 """
+        """验证会话ID是否有效"""
         headers = {"Cookie": f"sessionid={sessionid}"}
         try:
             response = requests.get(test_url, headers=headers)
@@ -82,14 +91,14 @@ class SessionManager:
             return False
 
     def get_valid_session(self, test_url: str) -> Optional[str]:
-        """ 获取有效的 session ID """
+        """获取有效的会话ID"""
         sessionid = self.load_sessionid()
         if sessionid and self.validate_session(sessionid, test_url):
             return sessionid
         return self.login()
 
 def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
-    """ 发送 HTTP 请求 """
+    """发送HTTP请求"""
     session_manager = SessionManager(login_url, session_file)
     sessionid = session_manager.get_valid_session(target_url)
     if not sessionid:
@@ -108,140 +117,98 @@ def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, j
         return None
 
 def fetch_data(url: str, params: Optional[Dict[str, Any]] = None):
+    """发送GET请求"""
     return send_request("GET", url, params=params)
 
 def post_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None):
+    """发送POST请求"""
     return send_request("POST", url, data=data, json_data=json_data)
 
 def put_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None):
+    """发送PUT请求"""
     return send_request("PUT", url, data=data, json_data=json_data)
 
-#######功能函数########
-def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_id: int) -> Optional[Dict[str, Any]]:
-    """
-    创建实验的完整流程，包含四次连续的 POST 请求。
-    """
+# ================== 二期字段映射器 ==================
+class SimpleFieldMapper:
+    """支持默认值的简易字段映射器"""
+    def __init__(self, strict_mode: bool = False, default_sep: str = "||"):
+        """
+        :param strict_mode: 严格模式（True=遇到错误抛出异常）
+        :param default_sep: 默认值分隔符（如：field||default）
+        """
+        self.strict_mode = strict_mode
+        self.default_sep = default_sep
 
-    # Step 1: 初始化实验草稿
-    step1_url = "http://28.4.136.142/api/step1"
-    step1_payload = {
-        "flight_name": flight_name,
-        "duration": duration,
-        "hash_strategy": hash_strategy,
-        "expiration_remind": True,
-        "longrun_remind": True,
-        "report_mode": 0,
-        "mode": 1,
-        "app": app_id
-    }
-    step1_response = post_data(step1_url, json_data=step1_payload)
-    if not step1_response:
-        logger.error("❌ 第一步请求失败")
-        return None
-    draft_id = step1_response.get("data",{}).get("draft_id")
+    @lru_cache(maxsize=32)
+    def load_config(self, config_path: str) -> Dict:
+        """加载配置文件"""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            self._handle_error(f"配置加载失败: {config_path}", e)
+            return {}
 
-    # Step 2: 配置实验指标
-    step2_url = "http://28.4.136.142/api/step2"
-    step2_payload = {
-        "major_metric": "1545",
-        "metrics": "1545",
-        "app": app_id,
-        "draft_id": draft_id
-    }
-    step2_response = post_data(step2_url, json_data=step2_payload)
-    if not step2_response:
-        logger.error("❌ 第二步请求失败")
-        return None
+    def transform(self, source: Dict, mapping: Dict) -> Dict:
+        """执行字段映射转换"""
+        result = {}
+        for target_field, source_rule in mapping.items():
+            try:
+                # 解析路径和默认值
+                path, default = self._parse_rule(source_rule)
 
-    # Step 3: 配置实验版本
-    version_control_id = str(uuid.uuid4())
-    version_experiment_id = str(uuid.uuid4())
-    step3_url = "http://28.4.136.142/api/step3"
-    step3_payload = {
-        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
-        "app": app_id,
-        "draft_id": draft_id
-    }
-    step3_response = post_data(step3_url, json_data=step3_payload)
-    if not step3_response:
-        logger.error("❌ 第三步请求失败")
-        return None
+                # 获取值
+                value = self._get_value(source, path) or default
 
-    # Step 4: 提交实验草稿
-    step4_url = "http://28.4.136.142/api/step4"
-    step4_payload = {
-        "skip_verificationh": False,
-        "is_start": True,
-        "distribute": True,
-        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
-        "filter_rule":"[]",
-        "layer_info":f"""{{"layer_id": -1,"version_resource":1}}""",
-        "app": app_id,
-        "draft_id": draft_id,
-        "version_freeze_status":0
-    }
-    step4_response = post_data(step4_url, json_data=step4_payload)
-    if not step4_response:
-        logger.error("❌ 第四步请求失败")
-        return None
+                # 设置值
+                if value is not None:
+                    self._set_value(result, target_field, value)
 
-    return step4_response
+            except Exception as e:
+                self._handle_error(f"处理字段 {target_field} 失败", e)
 
-def get_flight_config(flight_id: int, is_duplicate: bool = False):
-    """ 获取实验配置 """
-    url = f"https://28.4.136.142/datatester/api/v2/flight/view"
-    params = {"flight_id": flight_id, "is_duplicate": str(is_duplicate).lower()}
-    return fetch_data(url, params=params)
+        return result
 
+    def _parse_rule(self, rule: str) -> tuple:
+        """解析字段规则（支持 path||default 格式）"""
+        if self.default_sep in rule:
+            path, default_str = rule.split(self.default_sep, 1)
+            try:
+                default = json.loads(default_str)
+            except json.JSONDecodeError:
+                default = default_str
+            return path.strip(), default
+        return rule, None
 
-def get_metric_list(app_id: int, keyword: str = "", status: int = 1, is_required: int = -1, need_page: int = 1, page_size: int = 10):
-    """ 获取指标列表 """
-    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/metric/list"
-    params = {
-        "keyword": keyword,
-        "status": status,
-        "is_required": is_required,
-        "need_page": need_page,
-        "page_size": page_size
-    }
-    return fetch_data(url, params=params)
+    def _get_value(self, data: Dict, path: str) -> Any:
+        """获取嵌套字段值（支持 . 分隔路径和数组索引）"""
+        keys = path.split('.')
+        current = data
+        for key in keys:
+            if isinstance(current, list) and key.isdigit():
+                current = current[int(key)] if int(key) < len(current) else None
+            elif isinstance(current, dict):
+                current = current.get(key)
+            else:
+                return None
+            if current is None:
+                return None
+        return current
 
+    def _set_value(self, data: Dict, path: str, value: Any):
+        """设置嵌套字段值（支持 . 分隔路径）"""
+        keys = path.split('.')
+        current = data
+        for key in keys[:-1]:
+            current = current.setdefault(key, {})
+        current[keys[-1]] = value
 
-def update_flight_status(flight_id: int, action: str):
-    """ 修改实验状态 (启动/停止) """
-    if action not in ["launch", "stop"]:
-        logger.error("❌ Invalid action. Use 'launch' or 'stop'.")
-        return None
-
-    url = f"https://28.4.136.142/datatester/api/v2/flight/{action}"
-    payload = {"flight_id": flight_id}
-    return put_data(url, json_data=payload)
-
-
-def get_experiment_report(app_id: int, flight_id: int, report_type: str, start_ts: int, end_ts: int, trace_data: str):
-    """ 计算实验指标并返回指标报告 """
-    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/flight/{flight_id}/rich-metric-report"
-    params = {
-        "report_type": report_type,
-        "start_ts": start_ts,
-        "end_ts": end_ts,
-        "traceData": trace_data
-    }
-    return fetch_data(url, params=params)
-
-
-def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_page: int = 1, page_size: int = 10, page: int = 1, need_default: bool = False):
-    """ 获取互斥组列表 """
-    url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/layer/list"
-    params = {
-        "keyword": keyword,
-        "status": status,
-        "need_page": need_page,
-        "page_size": page_size,
-        "page": page,
-        "need_default": str(need_default).lower()
-    }
-    return fetch_data(url, params=params)
+    def _handle_error(self, msg: str, error: Exception):
+        """统一错误处理"""
+        full_msg = f"{msg}: {str(error)}"
+        if self.strict_mode:
+            raise ValueError(full_msg)
+        logger.warning(full_msg)
 
 # ================== 二期接口适配层 ==================
 class ABTestV2Service:
@@ -303,7 +270,6 @@ class V1Adapter:
     def __init__(self, v1_client):
         self.v1_client = v1_client
 
-    # --------- 创建实验代理 ---------
     def create_experiment_v2_proxy(self, **v2_params) -> Dict:
         """创建实验参数转换"""
         try:
@@ -341,7 +307,6 @@ class V1Adapter:
             "data": v1_response.get('data', {}).get('flight_id')
         }
 
-    # --------- 状态修改代理 ---------
     def update_status_v2_proxy(self, **v2_params) -> Dict:
         """实验状态修改代理"""
         try:
@@ -367,7 +332,6 @@ class V1Adapter:
             }
         }
 
-    # --------- 通用工具方法 ---------
     def _format_error_response(self, error_msg: str) -> Dict:
         return {
             "code": 500,
@@ -375,60 +339,30 @@ class V1Adapter:
             "data": None
         }
 
-# ================== 路由层（示例） ==================
-from fastapi import APIRouter, Path
-
-router = APIRouter()
-
-@router.post("/openapi/v2/apps/{app_id}/experiments")
-async def create_exp_v2(
-    app_id: int = Path(...),
-    request_data: Dict = Body(...)
-):
-    v2_service = ABTestV2Service(V1Adapter(SessionManager(...)))
-    return v2_service.create_experiment_v2(app_id=app_id, **request_data)
-
-@router.put("/openapi/v2/apps/{app_id}/experiments/{experiment_id}/launch/")
-async def launch_exp_v2(
-    app_id: int = Path(...),
-    experiment_id: int = Path(...)
-):
-    v2_service = ABTestV2Service(V1Adapter(SessionManager(...)))
-    return v2_service.update_experiment_status_v2(
-        app_id=app_id,
-        experiment_id=experiment_id,
-        action="launch"
-    )
-
 # ================== 使用示例 ==================
 if __name__ == "__main__":
-    # 初始化适配器
-    v1_session = SessionManager(login_url="...", session_file="...")
-    adapter = V1Adapter(v1_session)
+    # 初始化映射器
+    mapper = SimpleFieldMapper()
 
-    # 创建二期服务实例
-    v2_service = ABTestV2Service(adapter)
-
-    # 测试创建实验
-    test_params = {
-        "app_id": 10000305,
-        "name": "二期测试实验",
-        "mode": 1,
-        "endpoint_type": 1,
-        "duration": 30,
-        "major_metric": 29806,
-        "metrics": [29806],
-        "versions": [
-            {"type": 0, "name": "对照组", "config": {"key": "A"}},
-            {"type": 1, "name": "实验组", "config": {"key": "B"}}
-        ],
-        "layer_info": {"layer_id": -1, "version_resource": 0.5}
+    # 加载配置
+    config = {
+        "experiment_id": "flight_id||-1",
+        "experiment_name": "experiment.name||'未命名实验'",
+        "owner": "creator.email||'unknown@company.com'"
     }
-    print(v2_service.create_experiment_v2(**test_params))
 
-    # 测试修改状态
-    print(v2_service.update_experiment_status_v2(
-        app_id=10000305,
-        experiment_id=12345,
-        action="launch"
-    ))
+    # 原始数据
+    source_data = {
+        "flight_id": 123,
+        "experiment": {
+            "name": "二期实验"
+        },
+        "creator": {
+            "user_id": "admin"
+        }
+    }
+
+    # 执行转换
+    result = mapper.transform(source_data, config)
+    print("转换结果：")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
