@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-12 04:41:37
-LastEditTime: 2025-02-12 04:42:46
+LastEditTime: 2025-02-12 14:14:00
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/qushu/core/mapper.py
@@ -50,24 +50,19 @@ class FieldMapper:
             return converter(value)
         raise MappingError(f"Unknown transformer: {transform}")
 
-    @staticmethod
-    def _convert_status_code(code: int) -> str:
-        """状态码转换"""
-        codes = {
+        # 在FieldMapper类中添加以下转换方法
+    def _convert_status_code(self, code: int) -> str:
+        return {
             0: "stopped",
             1: "running",
-            2: "draft"
-        }
-        return codes.get(code, "unknown")
+            2: "pending"
+        }.get(code, "unknown")
 
-    @staticmethod
-    def _convert_version_type(v_type: int) -> str:
-        """版本类型转换"""
-        types = {
-            0: "control",
-            1: "experiment"
-        }
-        return types.get(v_type, "unknown")
+    def _convert_version_type(self, vtype: int) -> str:
+        return ["control", "experiment"][vtype]
+
+    def _convert_experiment_type(self, etype: str) -> int:
+        return 1 if etype == "server" else 0
 
     def transform(self, data: Dict, mapping_type: str, direction: str) -> Dict:
         """执行字段映射转换"""

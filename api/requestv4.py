@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-12 02:45:05
-LastEditTime: 2025-02-12 04:51:06
+LastEditTime: 2025-02-12 17:15:24
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/requestv4.py
@@ -24,9 +24,14 @@ logging.basicConfig(
 logger = logging.getLogger("ABTestProxy")
 # ================== 新增全局配置 ==================
 class ABTestConfig:
-    USE_V2_DIRECT = False  # 全局切换开关
-    V2_BASE_URL = "http://v2-server:8000"  # 二期服务地址
-    V1_ADAPTER_MODE = "proxy"  # proxy | direct
+    USE_V2_DIRECT = os.getenv('USE_V2_DIRECT', 'false').lower() == 'true'
+    V2_BASE_URL = os.getenv('V2_BASE_URL', 'http://v2-server:8000')
+    V1_ADAPTER_MODE = os.getenv('V1_ADAPTER_MODE', 'proxy')
+    SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
+
+# 认证信息从环境变量获取
+username = os.getenv("USERNAME", "admin")
+password = os.getenv("PASSWORD", "admin123")
 
 # ================== 一期功能实现 ==================
 class SessionManager:
@@ -256,115 +261,67 @@ def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_p
     }
     return fetch_data(url, params=params)
 # ================== 字段映射处理器 ==================
-class FieldMapper:
-    def __init__(self):
-        self.transformers = {
-            'timestamp_to_iso': lambda x: datetime.fromtimestamp(x).isoformat(),
-            'status_converter': self._convert_status,
-            'metric_type': self._convert_metric_type
-        }
-
-    def _convert_status(self, status: int) -> str:
-        status_map = {
-            0: "ended",
-            1: "running",
-            2: "pending",
-            3: "testing",
-            4: "draft"
-        }
-        return status_map.get(status, "unknown")
-
-    def _convert_metric_type(self, metric_type: str) -> str:
-        type_map = {
-            "major": "core",
-            "normal": "common"
-        }
-        return type_map.get(metric_type, metric_type)
+class SimplifiedFieldMapper:
+    def __init__(self, config_path: str = "config/v2_proxy"):
+        self.config_path = Path(config_path)
+        self.default_sep = "||"
 
     @lru_cache(maxsize=32)
     def load_mapping(self, api_name: str, direction: str) -> Dict:
-        """加载映射配置文件"""
-        config_path = self.config_base / f"{api_name}_{direction}.json"
+        """加载简化的映射配置"""
+        config_file = self.config_path / f"{api_name}_{direction}.json"
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"加载映射配置失败: {config_path} - {str(e)}")
-            raise
+            logger.error(f"加载映射配置失败: {config_file} - {str(e)}")
+            return {}
 
     def transform(self, data: Dict, mapping: Dict) -> Dict:
-        """执行字段映射转换"""
+        """执行简化版字段映射"""
         result = {}
-        for target_field, rule in mapping.items():
+        for target_field, source_path in mapping.items():
             try:
-                # 处理嵌套映射
-                if 'mappings' in rule:
-                    nested_data = self.transform(data, rule['mappings'])
-                    result[target_field] = nested_data
-                    continue
+                # 支持默认值语法：field.path||default_value
+                if self.default_sep in source_path:
+                    path, default_str = source_path.split(self.default_sep, 1)
+                    default = json.loads(default_str)
+                else:
+                    path = source_path
+                    default = None
 
-                # 解析映射规则
-                source_path = rule.get('source', '')
-                default_value = rule.get('default')
-                transformer = self.transformers.get(rule.get('transform'))
+                # 获取嵌套值
+                value = self._get_nested_value(data, path.split('.'), default)
 
-                # 获取源数据
-                value = self._get_nested_value(data, source_path.split('.'), default_value)
-
-                # 应用转换
-                if transformer and value is not None:
-                    value = transformer(value)
-
-                # 设置目标数据
+                # 设置到目标字段
                 if value is not None:
                     self._set_nested_value(result, target_field.split('.'), value)
 
             except Exception as e:
-                logger.warning(f"字段映射失败 [{target_field}]: {str(e)}")
+                logger.warning(f"字段映射失败 [{target_field} <- {source_path}]: {str(e)}")
         return result
 
-    # 辅助方法保持不变...
-
-    def _parse_rule(self, rule: str) -> tuple:
-        """解析字段规则（支持 path||default 格式）"""
-        if self.default_sep in rule:
-            path, default_str = rule.split(self.default_sep, 1)
-            try:
-                default = json.loads(default_str)
-            except json.JSONDecodeError:
-                default = default_str
-            return path.strip(), default
-        return rule, None
-
-    def _get_value(self, data: Dict, path: str) -> Any:
-        """获取嵌套字段值（支持 . 分隔路径和数组索引）"""
-        keys = path.split('.')
+    def _get_nested_value(self, data: Dict, path: List[str], default: Any = None) -> Any:
+        """获取嵌套字段值"""
         current = data
-        for key in keys:
-            if isinstance(current, list) and key.isdigit():
-                current = current[int(key)] if int(key) < len(current) else None
-            elif isinstance(current, dict):
-                current = current.get(key)
+        for key in path:
+            if isinstance(current, dict):
+                current = current.get(key, default)
+            elif isinstance(current, list) and key.isdigit():
+                index = int(key)
+                current = current[index] if index < len(current) else default
             else:
-                return None
+                return default
             if current is None:
-                return None
+                return default
         return current
 
-    def _set_value(self, data: Dict, path: str, value: Any):
-        """设置嵌套字段值（支持 . 分隔路径）"""
-        keys = path.split('.')
+    def _set_nested_value(self, data: Dict, path: List[str], value: Any):
+        """设置嵌套字段值"""
         current = data
-        for key in keys[:-1]:
+        for key in path[:-1]:
             current = current.setdefault(key, {})
-        current[keys[-1]] = value
-
-    def _handle_error(self, msg: str, error: Exception):
-        """统一错误处理"""
-        full_msg = f"{msg}: {str(error)}"
-        if self.strict_mode:
-            raise ValueError(full_msg)
-        logger.warning(full_msg)
+        current[path[-1]] = value
 # ================== 接口代理层实现 ==================
 class ABTestProxy:
     def __init__(self, v1_client, mapper: FieldMapper):
