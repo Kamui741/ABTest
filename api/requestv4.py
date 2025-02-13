@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-12 02:45:05
-LastEditTime: 2025-02-12 17:15:24
+LastEditTime: 2025-02-13 07:47:30
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/requestv4.py
@@ -24,14 +24,12 @@ logging.basicConfig(
 logger = logging.getLogger("ABTestProxy")
 # ================== 新增全局配置 ==================
 class ABTestConfig:
-    USE_V2_DIRECT = os.getenv('USE_V2_DIRECT', 'false').lower() == 'true'
-    V2_BASE_URL = os.getenv('V2_BASE_URL', 'http://v2-server:8000')
-    V1_ADAPTER_MODE = os.getenv('V1_ADAPTER_MODE', 'proxy')
     SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
 
 # 认证信息从环境变量获取
 username = os.getenv("USERNAME", "admin")
 password = os.getenv("PASSWORD", "admin123")
+LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
 
 # ================== 一期功能实现 ==================
 class SessionManager:
@@ -57,7 +55,7 @@ class SessionManager:
                 logger.info(f"Session ID loaded from {self.session_file}")
                 return sessionid
         except Exception as e:
-            logger.error(f"❌ Error loading session ID file: {e}")
+            logger.error(f" Error loading session ID file: {e}")
             return self.login()
 
     def _handle_response(self, response: requests.Response) -> Optional[Dict[str, Any]]:
@@ -65,14 +63,14 @@ class SessionManager:
         try:
             response_data = response.json()
         except requests.JSONDecodeError:
-            logger.error(f"❌ Failed to parse JSON response from {response.url}")
+            logger.error(f" Failed to parse JSON response from {response.url}")
             return None
 
         if response.status_code == 200 and response_data.get("code") == 200:
-            logger.info(f"✅ Request to {response.url} succeeded")
+            logger.info(f" Request to {response.url} succeeded")
             return response_data
         else:
-            logger.error(f"❌ Request failed, status: {response.status_code}, message: {response_data.get('message', 'Unknown error')}")
+            logger.error(f" Request failed, status: {response.status_code}, message: {response_data.get('message', 'Unknown error')}")
             return None
 
     def login(self) -> Optional[str]:
@@ -87,7 +85,7 @@ class SessionManager:
                     return sessionid
                 logger.warning("Login successful but session ID not found in response cookies")
         except requests.RequestException as e:
-            logger.error(f"❌ Login request failed: {e}")
+            logger.error(f" Login request failed: {e}")
         return None
 
     def validate_session(self, sessionid: str, test_url: str) -> bool:
@@ -97,7 +95,7 @@ class SessionManager:
             response = requests.get(test_url, headers=headers)
             return bool(self._handle_response(response))
         except requests.RequestException as e:
-            logger.error(f"❌ Failed to validate session: {e}")
+            logger.error(f" Failed to validate session: {e}")
             return False
 
     def get_valid_session(self, test_url: str) -> Optional[str]:
@@ -112,7 +110,7 @@ def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, j
     session_manager = SessionManager(login_url, session_file)
     sessionid = session_manager.get_valid_session(target_url)
     if not sessionid:
-        logger.error("❌ Failed to get a valid session")
+        logger.error(" Failed to get a valid session")
         return None
 
     headers = {"Cookie": f"sessionid={sessionid}"}
@@ -123,7 +121,7 @@ def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, j
         response = requests.request(method, url, headers=headers, data=data, json=json_data, params=params)
         return session_manager._handle_response(response)
     except requests.RequestException as e:
-        logger.error(f"❌ Error occurred while making {method} request: {e}")
+        logger.error(f" Error occurred while making {method} request: {e}")
         return None
 
 def fetch_data(url: str, params: Optional[Dict[str, Any]] = None):
@@ -142,7 +140,7 @@ def put_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optiona
 # ================== 一期功能函数 ==================
 def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_id: int) -> Optional[Dict[str, Any]]:
     """
-    创建实验的完整流程，包含四次连续的 POST 请求。
+    创建实验的完整流程,包含四次连续的 POST 请求。
     """
     # Step 1: 初始化实验草稿
     step1_url = "http://28.4.136.142/api/step1"
@@ -158,7 +156,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     }
     step1_response = post_data(step1_url, json_data=step1_payload)
     if not step1_response:
-        logger.error("❌ 第一步请求失败")
+        logger.error(" 第一步请求失败")
         return None
     draft_id = step1_response.get("data",{}).get("draft_id")
 
@@ -172,7 +170,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     }
     step2_response = post_data(step2_url, json_data=step2_payload)
     if not step2_response:
-        logger.error("❌ 第二步请求失败")
+        logger.error(" 第二步请求失败")
         return None
 
     # Step 3: 配置实验版本
@@ -180,22 +178,22 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     version_experiment_id = str(uuid.uuid4())
     step3_url = "http://28.4.136.142/api/step3"
     step3_payload = {
-        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
+        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3}}}}""",
         "app": app_id,
         "draft_id": draft_id
     }
     step3_response = post_data(step3_url, json_data=step3_payload)
     if not step3_response:
-        logger.error("❌ 第三步请求失败")
+        logger.error(" 第三步请求失败")
         return None
 
     # Step 4: 提交实验草稿
     step4_url = "http://28.4.136.142/api/step4"
     step4_payload = {
-        "skip_verificationh": False,
+        "skip_verification": False,
         "is_start": True,
         "distribute": True,
-        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本"，"users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本"，"users":[],"weight":50,"config":{{"3":"3}}}}""",
+        "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3}}}}""",
         "filter_rule":"[]",
         "layer_info":f"""{{"layer_id": -1,"version_resource":1}}""",
         "app": app_id,
@@ -204,7 +202,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     }
     step4_response = post_data(step4_url, json_data=step4_payload)
     if not step4_response:
-        logger.error("❌ 第四步请求失败")
+        logger.error(" 第四步请求失败")
         return None
 
     return step4_response
@@ -230,7 +228,7 @@ def get_metric_list(app_id: int, keyword: str = "", status: int = 1, is_required
 def update_flight_status(flight_id: int, action: str):
     """ 修改实验状态 (启动/停止) """
     if action not in ["launch", "stop"]:
-        logger.error("❌ Invalid action. Use 'launch' or 'stop'.")
+        logger.error(" Invalid action. Use 'launch' or 'stop'.")
         return None
 
     url = f"https://28.4.136.142/datatester/api/v2/flight/{action}"
@@ -261,7 +259,7 @@ def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_p
     }
     return fetch_data(url, params=params)
 # ================== 字段映射处理器 ==================
-class SimplifiedFieldMapper:
+class FieldMapper:
     def __init__(self, config_path: str = "config/v2_proxy"):
         self.config_path = Path(config_path)
         self.default_sep = "||"
@@ -324,106 +322,55 @@ class SimplifiedFieldMapper:
         current[path[-1]] = value
 # ================== 接口代理层实现 ==================
 class ABTestProxy:
+    # 显式声明V2到V1的映射关系（Key: V2接口名, Value: V1方法名）
+    _API_MAPPINGS = {
+        'create_experiment': 'create_experiment',
+        'get_experiment_details': 'get_flight_config',
+        'generate_report': 'get_experiment_report',
+        'modify_experiment_status': 'update_flight_status',
+        'list_available_metrics': 'get_metric_list',
+        'list_mutex_groups': 'get_mutex_group_list'
+    }
+
     def __init__(self, v1_client, mapper: FieldMapper):
         self.v1_client = v1_client
         self.mapper = mapper
-        self.api_mappings = {
-            'create_experiment': {'req': 'create_experiment', 'res': 'create_experiment'},
-            'get_experiment': {'req': 'get_experiment', 'res': 'get_experiment'},
-            'get_report': {'req': 'get_report', 'res': 'get_report'},
-            'update_status': {'req': 'update_status', 'res': 'update_status'},
-            'list_metrics': {'req': 'list_metrics', 'res': 'list_metrics'},
-            'list_layers': {'req': 'list_layers', 'res': 'list_layers'}
-        }
-        self.api_endpoints = {
-            'create_experiment': '/openapi/v2/apps/{app_id}/experiments',
-            'get_experiment': '/openapi/v1/apps/{app_id}/experiment/{experiment_id}/details',
-            'get_report': '/openapi/v1/apps/{app_id}/experiment/{experiment_id}/metrics',
-            'update_status': '/openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}/',
-            'list_metrics': '/openapi/v2/apps/{app_id}/metrics',
-            'list_layers': '/openapi/v2/apps/{app_id}/layers'
-        }
 
-    def create_experiment_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('create_experiment', v2_request)
+        # 动态注册所有接口方法
+        for v2_method, v1_method in self._API_MAPPINGS.items():
+            setattr(self, v2_method, self._create_proxy_method(v1_method))
 
-    def get_experiment_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('get_experiment', v2_request)
+    def _create_proxy_method(self, v1_method_name: str):
+        """创建代理方法工厂"""
+        def proxy_method(v2_request: Dict) -> Dict:
+            try:
+                # 加载字段映射配置（使用V2方法名）
+                req_map = self.mapper.load_mapping(v2_method_name, 'request')
+                res_map = self.mapper.load_mapping(v2_method_name, 'response')
 
-    def get_report_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('get_report', v2_request)
+                # 转换请求参数
+                v1_params = self.mapper.transform(v2_request, req_map)
 
-    def update_status_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('update_status', v2_request)
+                # 调用V1方法
+                v1_response = getattr(self.v1_client, v1_method_name)(**v1_params)
 
-    def list_metrics_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('list_metrics', v2_request)
+                # 转换响应结果
+                return {
+                    "code": 200,
+                    "message": "success",
+                    "data": self.mapper.transform(v1_response.get('data', {}), res_map)
+                }
+            except Exception as e:
+                return {
+                    "code": 500,
+                    "message": f"代理处理错误: {str(e)}",
+                    "data": None
+                }
 
-    def list_layers_v2(self, v2_request: Dict) -> Dict:
-        return self._process_request('list_layers', v2_request)
-
-    def _process_request(self, api_name: str, v2_request: Dict) -> Dict:
-        if ABTestConfig.USE_V2_DIRECT:
-            return self._call_v2_direct(api_name, v2_request)
-        return self._call_v1_proxy(api_name, v2_request)
-
-    def _call_v1_proxy(self, api_name: str, v2_request: Dict) -> Dict:
-        """原有代理逻辑"""
-        try:
-            mapping = self.api_mappings[api_name]
-            req_map = self.mapper.load_mapping(mapping['req'], 'request')
-            res_map = self.mapper.load_mapping(mapping['res'], 'response')
-
-            v1_params = self.mapper.transform(v2_request, req_map)
-            v1_response = getattr(self.v1_client, api_name)(**v1_params)
-
-            return self._build_response(v1_response, res_map)
-        except Exception as e:
-            return self._error_response(str(e))
-
-    def _call_v2_direct(self, api_name: str, params: Dict) -> Dict:
-        """直连二期服务"""
-        try:
-            endpoint = self.api_endpoints[api_name]
-            url = ABTestConfig.V2_BASE_URL + endpoint.format_map(params)
-
-            if api_name == 'update_status':
-                method = put_data
-            elif api_name in ['create_experiment', 'update_status']:
-                method = post_data
-            else:
-                method = fetch_data
-
-            response = method(url, params=params)
-            return self._format_v2_response(response)
-        except Exception as e:
-            return self._error_response(f"V2直连失败: {str(e)}")
-
-    def _format_v2_response(self, raw_response: Dict) -> Dict:
-        """标准化二期响应格式"""
-        if raw_response and 'code' in raw_response:
-            return raw_response
-        return {
-            "code": 500,
-            "message": "Invalid V2 response format",
-            "data": None
-        }
-
-    def _build_response(self, v1_response: Dict, res_map: Dict) -> Dict:
-        """构建标准化响应"""
-        return {
-            "code": 200,
-            "message": "success",
-            "data": self.mapper.transform(v1_response.get('data', {}), res_map)
-        }
-
-    def _error_response(self, error_msg: str) -> Dict:
-        return {
-            "code": 500,
-            "message": f"代理层处理错误: {error_msg}",
-            "data": None
-        }
-
+        # 获取当前V2方法名（通过闭包捕获）
+        v2_method_name = inspect.currentframe().f_back.f_locals['v2_method']
+        proxy_method.__name__ = v2_method_name
+        return proxy_method
 class V1Client:
     def __init__(self, session_manager: SessionManager):
         self.session = session_manager
@@ -479,164 +426,15 @@ class V1Client:
             need_default=params.get('need_default', False)
         )
 
-# ================== 配置文件示例 ==================
-"""
-config/v2_proxy/create_experiment_request.json
-{
-    "mappings": {
-        "flight_name": {"source": "experiment_name"},
-        "duration": {"source": "duration_days"},
-        "hash_strategy": {"source": "hash_type", "default": "ssid"},
-        "app_id": {"source": "app_id"},
-        "version_configs": {
-            "source": "versions",
-            "mappings": {
-                "type": {"source": "version_type"},
-                "name": {"source": "version_name"},
-                "config": {"source": "parameters"}
-            }
-        }
-    }
-}
 
-config/v2_proxy/create_experiment_response.json
+
+    # ================== 配置文件示例 ==================
+"""
+# get_report_response.json
 {
-    "mappings": {
-        "experiment_id": {"source": "flight_id"},
-        "status": {"source": "state", "transform": "status_converter"},
-        "created_at": {"source": "create_time", "transform": "timestamp_to_iso"}
-    }
+    "report_id": "data.report_id",
+    "metrics": "data.metric_list",
+    "start_time": "data.period.start_timestamp",
+    "end_time": "data.period.end_timestamp"
 }
 """
-
-
-# ================== FastAPI路由集成 ==================
-from fastapi import FastAPI, APIRouter, Body
-
-app = FastAPI()
-router = APIRouter()
-
-@router.post("/openapi/v2/apps/{app_id}/experiments")
-async def create_exp_v2(
-    app_id: int,
-    request_data: Dict = Body(...)
-):
-    return proxy_handler('create_experiment', {'app_id': app_id, **request_data})
-
-@router.get("/openapi/v1/apps/{app_id}/experiment/{experiment_id}/details")
-async def get_exp_v2(
-    app_id: int,
-    experiment_id: int
-):
-    return proxy_handler('get_experiment', {'app_id': app_id, 'experiment_id': experiment_id})
-
-@router.get("/openapi/v1/apps/{app_id}/experiment/{experiment_id}/metrics")
-async def get_report_v2(
-    app_id: int,
-    experiment_id: int,
-    report_type: str,
-    start_ts: int,
-    end_ts: int,
-    filters: List[str] = []
-):
-    params = {
-        'app_id': app_id,
-        'experiment_id': experiment_id,
-        'report_type': report_type,
-        'start_ts': start_ts,
-        'end_ts': end_ts,
-        'filters': filters
-    }
-    return proxy_handler('get_report', params)
-
-@router.put("/openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}/")
-async def update_status_v2(
-    app_id: int,
-    experiment_id: int,
-    action: str
-):
-    return proxy_handler('update_status', {
-        'app_id': app_id,
-        'experiment_id': experiment_id,
-        'action': action
-    })
-
-@router.get("/openapi/v2/apps/{app_id}/metrics")
-async def list_metrics_v2(
-    app_id: int,
-    keyword: str = "",
-    need_page: int = 1,
-    page_size: int = 10,
-    page: int = 1
-):
-    params = {
-        'app_id': app_id,
-        'keyword': keyword,
-        'need_page': need_page,
-        'page_size': page_size,
-        'page': page
-    }
-    return proxy_handler('list_metrics', params)
-
-@router.get("/openapi/v2/apps/{app_id}/layers")
-async def list_layers_v2(
-    app_id: int,
-    keyword: str = "",
-    need_page: int = 1,
-    page_size: int = 10,
-    page: int = 1
-):
-    params = {
-        'app_id': app_id,
-        'keyword': keyword,
-        'need_page': need_page,
-        'page_size': page_size,
-        'page': page
-    }
-    return proxy_handler('list_layers', params)
-
-def proxy_handler(api_name: str, params: Dict):
-    """统一请求处理入口"""
-    proxy = ABTestProxy(v1_client, mapper)
-    return getattr(proxy, f"{api_name}_v2")(params)
-# ================== 使用示例 ==================
-if __name__ == "__main__":
-    # 初始化组件
-    session_mgr = SessionManager(login_url="...", session_file="...")
-    v1_client = V1Client(session_mgr)
-    mapper = FieldMapper()
-    proxy = ABTestProxy(v1_client, mapper)
-
-    # 二期创建实验请求
-    v2_create_request = {
-        "experiment_name": "二期实验",
-        "duration_days": 30,
-        "app_id": 10000305,
-        "hash_type": "user_id",
-        "versions": [
-            {
-                "version_type": 0,
-                "version_name": "对照组",
-                "parameters": {"feature_flag": False}
-            },
-            {
-                "version_type": 1,
-                "version_name": "实验组",
-                "parameters": {"feature_flag": True}
-            }
-        ]
-    }
-
-    # 调用代理接口
-    create_response = proxy.create_experiment_v2(v2_create_request)
-    print("创建实验响应：")
-    print(json.dumps(create_response, indent=2, ensure_ascii=False))
-
-    # 二期修改状态请求
-    v2_status_request = {
-        "experiment_id": 12345,
-        "action": "launch"
-    }
-    status_response = proxy.update_experiment_status_v2(v2_status_request)
-    print("\n修改状态响应：")
-    print(json.dumps(status_response, indent=2, ensure_ascii=False))

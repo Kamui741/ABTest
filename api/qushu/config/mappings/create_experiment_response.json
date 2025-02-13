@@ -1,7 +1,0 @@
-// config/mappings/create_experiment_response.json
-{
-    "mappings": {
-      "flight_id": {"source": "data"},
-      "status": {"source": "code", "transform": "status_code_converter"}
-    }
-  }

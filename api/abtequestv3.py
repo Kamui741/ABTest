@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-11 16:59:56
-LastEditTime: 2025-02-11 16:59:57
+LastEditTime: 2025-02-13 05:53:29
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/abtequestv3.py
@@ -22,7 +22,12 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
+# ================== 服务配置 ==================
+class ServiceConfig:
+    V1_BASE_URL = os.getenv("V1_BASE_URL", "http://28.4.136.142")
+    LOGIN_URL = f"{V1_BASE_URL}/login"
+    TARGET_URL = f"{V1_BASE_URL}/healthcheck"
+    SESSION_FILE = ABTestConfig.SESSION_FILE  #?
 # ================== 一期功能实现 ==================
 class SessionManager:
     """一期会话管理器"""
@@ -99,7 +104,10 @@ class SessionManager:
 
 def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
     """发送HTTP请求"""
-    session_manager = SessionManager(login_url, session_file)
+    session_manager = SessionManager(
+        login_url=ServiceConfig.LOGIN_URL,
+        session_file=ServiceConfig.SESSION_FILE
+    )
     sessionid = session_manager.get_valid_session(target_url)
     if not sessionid:
         logger.error("❌ Failed to get a valid session")
