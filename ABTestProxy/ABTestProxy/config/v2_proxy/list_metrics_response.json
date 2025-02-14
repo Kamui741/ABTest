@@ -1,0 +1,9 @@
+{
+    "metrics": {
+        "path": "data.metrics",
+        "mapping": {
+            "metric_id": "id",
+            "is_core": "is_required==0"
+        }
+    }
+}

@@ -1,0 +1,6 @@
+{
+    "report_type": "report_type",
+    "start_ts": "start_ts",
+    "end_ts": "end_ts",
+    "trace_data": "filters"
+}

@@ -1,0 +1,10 @@
+{
+    "report_id": "data.calculation_results.hash",
+    "metrics": {
+        "path": "data.metrics",
+        "mapping": {
+            "metric_id": "id",
+            "confidence": "calculation_results.$parent.id.confidence"
+        }
+    }
+}

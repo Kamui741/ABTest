@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:19:26
-LastEditTime: 2025-02-13 14:19:27
+LastEditTime: 2025-02-14 15:21:29
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/auth.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/auth.py
 '''
 
 # # ================== 核心模块 ==================
@@ -20,7 +20,10 @@ import os
 import requests
 import logging
 from typing import Optional, Dict, Any
+from .config import USERNAME, PASSWORD
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 class SessionManager:
     """一期会话管理器"""
     def __init__(self, login_url: str, session_file: str):
@@ -65,7 +68,7 @@ class SessionManager:
     def login(self) -> Optional[str]:
         """登录并获取会话ID"""
         try:
-            response = requests.post(self.login_url, json={"email": username, "password": password})
+            response = requests.post(self.login_url, json={"email": USERNAME, "password": PASSWORD})
             response_data = self._handle_response(response)
             if response_data:
                 sessionid = response.cookies.get("sessionid")

@@ -1,0 +1,18 @@
+{
+    "id": "data.id",
+    "name": "data.name",
+    "start_time": "data.start_ts",
+    "end_time": "data.end_ts",
+    "status": "data.status==1 ? 'running' : 'stopped'",
+    "layer_info": {
+        "layer_name": "data.layer.name",
+        "traffic_percent": "data.version_resource"
+    },
+    "versions": {
+        "path": "data.versions",
+        "mapping": {
+            "version_id": "id",
+            "config": "config"
+        }
+    }
+}

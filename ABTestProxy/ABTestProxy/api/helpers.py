@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:35:07
-LastEditTime: 2025-02-13 17:10:47
+LastEditTime: 2025-02-14 11:41:25
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/api/ABTestProxy/api/helpers.py
@@ -16,10 +16,15 @@ FilePath: /code/ABTest/api/ABTestProxy/api/helpers.py
 import requests
 from typing import Optional, Dict, Any
 from ..auth import SessionManager
+from ..config import LOGIN_URL,SESSION_FILE,TARGET_URL
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
     """发送HTTP请求"""
-    session_manager = SessionManager(login_url, session_file)
-    sessionid = session_manager.get_valid_session(target_url)
+    session_manager = SessionManager(LOGIN_URL, SESSION_FILE)
+    sessionid = session_manager.get_valid_session(TARGET_URL)
     if not sessionid:
         logger.error(" Failed to get a valid session")
         return None

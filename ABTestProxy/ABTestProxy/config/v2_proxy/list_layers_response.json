@@ -1,0 +1,9 @@
+{
+    "groups": {
+        "path": "data",
+        "mapping": {
+            "group_id": "id",
+            "available_traffic": "available_traffic"
+        }
+    }
+}

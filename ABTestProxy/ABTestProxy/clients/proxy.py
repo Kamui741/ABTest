@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:33:49
-LastEditTime: 2025-02-13 17:09:37
+LastEditTime: 2025-02-14 16:37:21
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/clients/proxy.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/clients/proxy.py
 '''
 
 # # ================== 客户端模块 ==================

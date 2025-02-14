@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:33:24
-LastEditTime: 2025-02-13 17:08:18
+LastEditTime: 2025-02-14 14:49:49
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/mappers.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/mappers.py
 '''
 
 # [ABTestProxy/mappers.py]
@@ -18,12 +18,14 @@ import logging
 from pathlib import Path
 from functools import lru_cache
 from typing import Dict, List, Any
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 class FieldMapper:
     def __init__(self, config_path: str = None):
         self.config_path = Path(config_path)
         self.default_sep = "||"
 
-    @lru_cache(maxsize=32)
+
     def load_mapping(self, api_name: str, direction: str) -> Dict:
         """加载简化的映射配置"""
         config_file = self.config_path / f"{api_name}_{direction}.json"
