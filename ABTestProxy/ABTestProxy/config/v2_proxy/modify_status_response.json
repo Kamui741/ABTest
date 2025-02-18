@@ -1,3 +1,4 @@
 {
-    "success": "code==200"
-}
+    "operation_status": "result_code",
+    "timestamp": "update_time"
+  }

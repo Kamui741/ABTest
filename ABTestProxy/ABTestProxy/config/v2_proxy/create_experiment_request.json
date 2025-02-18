@@ -1,24 +1,27 @@
-
 {
-    "app_id": "app_id",
     "flight_name": "name",
-    "mode": "mode||1",
-    "description": "description",
-    "hash_strategy": "endpoint_type==1 ? 'user_id' : 'ssid'",
     "duration": "duration||30",
-    "major_metric": "major_metric",
-    "metrics": "metrics",
-    "versions": {
-        "path": "versions",
-        "mapping": {
-            "type": "type",
-            "name": "name",
-            "config": "config",
-            "weight": "weight||0.5"
-        }
+    "hash_strategy": {
+      "path": "hash_strategy",
+      "mapping": {
+        "strategy": "strategy||ssid"
+      }
     },
-    "layer_info": {
-        "layer_id": "layer_info.layer_id||-1",
-        "version_resource": "layer_info.version_resource"
+    "app_id": "app_id",
+    "versions": {
+      "path": "versions",
+      "mapping": {
+        "version_type": "type",
+        "version_name": "name",
+        "config": "config",
+        "weight": "weight||0.5"
+      }
+    },
+    "layer_config": {
+      "path": "layer_info",
+      "mapping": {
+        "layer_id": "layer_id||-1",
+        "traffic": "version_resource"
+      }
     }
-}
+  }

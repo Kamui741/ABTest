@@ -1,3 +1,10 @@
 {
-    "experiment_id": "data"
-}
+    "experiment_id": "flight_id",
+    "status": {
+      "path": "status_info",
+      "mapping": {
+        "code": "code",
+        "message": "msg"
+      }
+    }
+  }

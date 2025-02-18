@@ -1,10 +1,16 @@
 {
-    "report_id": "data.calculation_results.hash",
-    "metrics": {
-        "path": "data.metrics",
-        "mapping": {
-            "metric_id": "id",
-            "confidence": "calculation_results.$parent.id.confidence"
-        }
+    "calculation_results": {
+      "path": "data.calculate_data",
+      "mapping": {
+        "metric_id": "indicator_id",
+        "confidence": "confidence_level",
+        "mde": "mde_value"
+      }
+    },
+    "user_data": {
+      "path": "data.user_distribution",
+      "mapping": {
+        "_key_": "_value_"
+      }
     }
-}
+  }

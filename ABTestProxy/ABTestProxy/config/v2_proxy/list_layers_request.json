@@ -1,3 +1,6 @@
 {
-    "need_default": "false"
-}
+    "keyword": "search_key||''",
+    "need_page": "need_paging||1",
+    "page_size": "page_size||10",
+    "page": "page_num||1"
+  }

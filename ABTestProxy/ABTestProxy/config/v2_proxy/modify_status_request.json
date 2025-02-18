@@ -1,3 +1,6 @@
 {
-    "action": "$url.contains('launch') ? 'launch' : 'stop'"
-}
+    "action": {
+      "launch": "start",
+      "stop": "end"
+    }
+  }

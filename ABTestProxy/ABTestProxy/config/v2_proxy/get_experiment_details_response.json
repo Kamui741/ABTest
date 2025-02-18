@@ -1,18 +1,24 @@
 {
-    "id": "data.id",
-    "name": "data.name",
-    "start_time": "data.start_ts",
-    "end_time": "data.end_ts",
-    "status": "data.status==1 ? 'running' : 'stopped'",
-    "layer_info": {
-        "layer_name": "data.layer.name",
-        "traffic_percent": "data.version_resource"
-    },
+    "id": "flight_id",
+    "name": "flight_name",
+    "start_ts": "start_time",
+    "end_ts": "end_time",
+    "owner": "creator_id",
+    "status": "status_code",
     "versions": {
-        "path": "data.versions",
-        "mapping": {
-            "version_id": "id",
-            "config": "config"
-        }
+      "path": "groups",
+      "mapping": {
+        "id": "group_id",
+        "name": "group_name",
+        "config": "params",
+        "weight": "ratio"
+      }
+    },
+    "metrics": {
+      "path": "indicator_list",
+      "mapping": {
+        "id": "indicator_id",
+        "type": "indicator_type"
+      }
     }
-}
+  }

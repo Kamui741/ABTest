@@ -1,6 +1,8 @@
 {
+    "app_id": "app_id",
+    "flight_id": "experiment_id",
     "report_type": "report_type",
-    "start_ts": "start_ts",
-    "end_ts": "end_ts",
-    "trace_data": "filters"
-}
+    "start_ts": "start_time",
+    "end_ts": "end_time",
+    "filters": "conditions||[]"
+  }

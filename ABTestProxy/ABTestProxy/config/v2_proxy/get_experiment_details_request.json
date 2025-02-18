@@ -1,3 +1,4 @@
 {
-    "flight_id": "experiment_id"
-}
+    "flight_id": "experiment_id",
+    "is_duplicate": "is_duplicate||false"
+  }

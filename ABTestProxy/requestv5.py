@@ -1,27 +1,13 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 09:44:00
-LastEditTime: 2025-02-13 17:16:37
+LastEditTime: 2025-02-19 05:04:36
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/requestv5.py
+FilePath: /code/ABTest/ABTestProxy/requestv5.py
 '''
 
 # 代码模块化方案（按功能划分）：
-# [ABTestProxy/__init__.py]
-import os
-from .auth import SessionManager
-from .clients import ABTestProxy, V1Client
-from .config import ABTestConfig, LOGIN_URL
-
-__version__ = "1.0.0"
-__all__ = [
-    'SessionManager',
-    'ABTestProxy',
-    'V1Client',
-    'ABTestConfig',
-    'LOGIN_URL'
-]
 # # ================== 核心模块 ==================
 # [ABTestProxy/auth.py]
 # |- SessionManager
@@ -35,6 +21,10 @@ import os
 import requests
 import logging
 from typing import Optional, Dict, Any
+from config import USERNAME, PASSWORD
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 class SessionManager:
     """一期会话管理器"""
     def __init__(self, login_url: str, session_file: str):
@@ -79,7 +69,7 @@ class SessionManager:
     def login(self) -> Optional[str]:
         """登录并获取会话ID"""
         try:
-            response = requests.post(self.login_url, json={"email": username, "password": password})
+            response = requests.post(self.login_url, json={"email": USERNAME, "password": PASSWORD})
             response_data = self._handle_response(response)
             if response_data:
                 sessionid = response.cookies.get("sessionid")
@@ -114,55 +104,80 @@ class SessionManager:
 #    |- transform
 #    |- _get_nested_value
 #    |- _set_nested_value
+"""
+简化版字段映射工具，支持：
+1. 嵌套字段映射
+2. 数组结构映射
+3. 默认值处理
+"""
 import json
 import logging
 from pathlib import Path
-from functools import lru_cache
 from typing import Dict, List, Any
-class FieldMapper:
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class SimpleMapper:
     def __init__(self, config_path: str = None):
-        self.config_path = Path(config_path)
+        self.config_path = Path(config_path) if config_path else None
         self.default_sep = "||"
 
-    @lru_cache(maxsize=32)
     def load_mapping(self, api_name: str, direction: str) -> Dict:
-        """加载简化的映射配置"""
-        config_file = self.config_path / f"{api_name}_{direction}.json"
+        """加载映射配置"""
+        if not self.config_path:
+            return {}
+        config_file = config_file = self.config_path.joinpath(f"{api_name}_{direction}.json")
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"加载映射配置失败: {config_file} - {str(e)}")
+            logger.error(f"配置加载失败: {config_file} - {str(e)}")
             return {}
 
-    def transform(self, data: Dict, mapping: Dict) -> Dict:
-        """执行简化版字段映射"""
+    def transform(self, source_data: Dict, mapping: Dict) -> Dict:
+        """执行字段转换"""
         result = {}
-        for target_field, source_path in mapping.items():
+        for target_field, source_spec in mapping.items():
             try:
-                # 支持默认值语法：field.path||default_value
-                if self.default_sep in source_path:
-                    path, default_str = source_path.split(self.default_sep, 1)
-                    default = json.loads(default_str)
+                # 处理嵌套映射
+                if isinstance(source_spec, dict):
+                    value = self._process_nested(source_data, source_spec)
+                # 处理普通字段
                 else:
-                    path = source_path
-                    default = None
+                    value = self._get_value(source_data, source_spec)
 
-                # 获取嵌套值
-                value = self._get_nested_value(data, path.split('.'), default)
-
-                # 设置到目标字段
                 if value is not None:
-                    self._set_nested_value(result, target_field.split('.'), value)
-
+                    self._set_value(result, target_field, value)
             except Exception as e:
-                logger.warning(f"字段映射失败 [{target_field} <- {source_path}]: {str(e)}")
+                logger.warning(f"字段映射失败 [{target_field}]: {str(e)}")
         return result
 
-    def _get_nested_value(self, data: Dict, path: List[str], default: Any = None) -> Any:
-        """获取嵌套字段值"""
+    def _process_nested(self, data: Dict, spec: Dict) -> Any:
+        """处理嵌套结构"""
+        nested_data = self._get_value(data, spec['path'])
+        if nested_data is None:
+            return None
+
+        # 处理数组类型
+        if isinstance(nested_data, list):
+            return [self.transform(item, spec['mapping']) for item in nested_data]
+
+        # 处理对象类型
+        return self.transform(nested_data, spec['mapping'])
+
+    def _get_value(self, data: Dict, path: str) -> Any:
+        """获取字段值（含默认值处理）"""
+        if self.default_sep in path:
+            path_part, default_part = path.split(self.default_sep, 1)
+            default = json.loads(default_part)
+        else:
+            path_part = path
+            default = None
+
+        keys = path_part.split('.')
         current = data
-        for key in path:
+        for key in keys:
             if isinstance(current, dict):
                 current = current.get(key, default)
             elif isinstance(current, list) and key.isdigit():
@@ -172,23 +187,22 @@ class FieldMapper:
                 return default
             if current is None:
                 return default
-        return current
+        return current if current is not None else default
 
-    def _set_nested_value(self, data: Dict, path: List[str], value: Any):
+    def _set_value(self, data: Dict, path: str, value: Any):
         """设置嵌套字段值"""
+        keys = path.split('.')
         current = data
-        for key in path[:-1]:
+        for key in keys[:-1]:
             current = current.setdefault(key, {})
-        current[path[-1]] = value
+        current[keys[-1]] = value
+
 
 # # ================== 客户端模块 ==================
-# [ABTestProxy/clients/__init__.py]
-from .proxy import ABTestProxy
-from .v1_client import V1Client
-
-__all__ = ['ABTestProxy', 'V1Client']
 # |- ABTestProxy
 #    |- _create_proxy_method
+import inspect
+from typing import Dict
 class ABTestProxy:
     # 显式声明V2到V1的映射关系（Key: V2接口名, Value: V1方法名）
     _API_MAPPINGS = {
@@ -200,7 +214,7 @@ class ABTestProxy:
         'list_mutex_groups': 'get_mutex_group_list'
     }
 
-    def __init__(self, v1_client, mapper: FieldMapper):
+    def __init__(self, v1_client, mapper):
         self.v1_client = v1_client
         self.mapper = mapper
 
@@ -248,8 +262,8 @@ class ABTestProxy:
 #    |- list_metrics
 #    |- list_layers
 from typing import Dict
-from ..auth import SessionManager
-from ..api.core import (
+from auth import SessionManager
+from api.core import (
     create_experiment,
     get_flight_config,
     get_experiment_report,
@@ -313,21 +327,6 @@ class V1Client:
             need_default=params.get('need_default', False)
         )
 # # ================== 接口实现模块 ==================
-# [ABTestProxy/api/__init__.py]
-from .core import *
-from .helpers import *
-__all__ = [
-    'create_experiment',
-    'get_flight_config',
-    'get_metric_list',
-    'update_flight_status',
-    'get_experiment_report',
-    'get_mutex_group_list',
-    'send_request',
-    'fetch_data',
-    'post_data',
-    'put_data'
-]
 # [ABTestProxy/api/core.py]
 # |- create_experiment
 # |- get_flight_config
@@ -339,7 +338,10 @@ import uuid
 import requests
 import logging
 from typing import Optional, Dict, Any
-from .helpers import post_data, put_data, fetch_data
+from api.helpers import post_data, put_data, fetch_data
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_id: int) -> Optional[Dict[str, Any]]:
     """
     创建实验的完整流程,包含四次连续的 POST 请求。
@@ -468,11 +470,16 @@ def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_p
 # |- put_data
 import requests
 from typing import Optional, Dict, Any
-from ..auth import SessionManager
+from auth import SessionManager
+from config import LOGIN_URL,SESSION_FILE,TARGET_URL
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
     """发送HTTP请求"""
-    session_manager = SessionManager(login_url, session_file)
-    sessionid = session_manager.get_valid_session(target_url)
+    session_manager = SessionManager(LOGIN_URL, SESSION_FILE)
+    sessionid = session_manager.get_valid_session(TARGET_URL)
     if not sessionid:
         logger.error(" Failed to get a valid session")
         return None
@@ -500,16 +507,134 @@ def put_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optiona
     """发送PUT请求"""
     return send_request("PUT", url, data=data, json_data=json_data)
 
+
 # # ================== 配置模块 ==================
 # [ABTestProxy/config.py]
 # |- ABTestConfig
 # |- LOGIN_URL
 # |- TARGET_URLS
 import os
-class ABTestConfig:
-    SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
-
-# 认证信息从环境变量获取
-username = os.getenv("USERNAME", "admin")
-password = os.getenv("PASSWORD", "admin123")
+# 会话配置
+SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
 LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
+TARGET_URL = "https://28.4.136.142/api/v1/target"
+# 认证信息
+USERNAME = os.getenv("USERNAME", "admin")
+PASSWORD = os.getenv("PASSWORD", "admin123")
+
+
+
+from auth import SessionManager
+from clients.proxy import  ABTestProxy
+from mappers import FieldMapper
+from clients.v1_client import V1Client
+from config import SESSION_FILE,LOGIN_URL
+
+def main():
+    # 初始化会话管理
+    session = SessionManager(
+        login_url="https://28.4.136.142/api/login",
+        session_file="session.txt"
+    )
+
+    # 创建客户端实例
+    mapper = FieldMapper(config_path="config/v2_proxy")
+    v1_client = V1Client(session)
+    proxy = ABTestProxy(v1_client, mapper)
+
+    # 示例应用ID
+    demo_app_id = 1001
+
+    try:
+        # ================== 1. 创建实验 ==================
+        create_params = {
+            "name": "新用户引导实验V2",
+            "app_id": demo_app_id,
+            "mode": 1,
+            "endpoint_type": 1,
+            "duration": 30,
+            "major_metric": 30001,
+            "metrics": [30001, 30002],
+            "versions": [
+                {
+                    "type": 0,
+                    "name": "对照组_V2",
+                    "config": {"feature_flag": "control"}
+                },
+                {
+                    "type": 1,
+                    "name": "实验组_V2",
+                    "config": {"feature_flag": "experiment"},
+                    "weight": 0.6
+                }
+            ],
+            "layer_info": {
+                "layer_id": -1,
+                "version_resource": 0.7
+            }
+        }
+        creation_res = proxy.create_experiment(create_params)
+        if creation_res["code"] != 200:
+            raise RuntimeError(f"创建失败: {creation_res['message']}")
+
+        experiment_id = creation_res["data"]
+        print(f"成功创建实验，ID: {experiment_id}")
+
+        # ================== 2. 获取实验配置 ==================
+        detail_params = {
+            "app_id": demo_app_id,
+            "experiment_id": experiment_id
+        }
+        detail_res = proxy.get_experiment_details(detail_params)
+        print("实验配置详情:", detail_res["data"])
+
+        # ================== 3. 获取指标报告 ==================
+        report_params = {
+            "app_id": demo_app_id,
+            "experiment_id": experiment_id,
+            "report_type": "day",
+            "start_ts": 1672502400,  # 2023-01-01
+            "end_ts": 1675084800,     # 2023-01-31
+            "trace_data": []
+        }
+        report_res = proxy.generate_report(report_params)
+        print("指标报告:", report_res["data"]["calculation_results"])
+
+        # ================== 4. 启动实验 ==================
+        launch_params = {
+            "app_id": demo_app_id,
+            "experiment_id": experiment_id
+        }
+        launch_res = proxy.modify_experiment_status(launch_params)
+        print("启动结果:", "成功" if launch_res["success"] else "失败")
+
+        # ================== 5. 获取指标列表 ==================
+        metric_params = {
+            "app_id": demo_app_id,
+            "keyword": "留存率",
+            "page_size": 20,
+            "page": 1
+        }
+        metric_res = proxy.list_available_metrics(metric_params)
+        print("指标列表:", metric_res["metrics"][:2])  # 打印前两个结果
+
+        # ================== 6. 获取互斥组 ==================
+        layer_params = {
+            "app_id": demo_app_id,
+            "keyword": "核心功能",
+            "page_size": 10,
+            "page": 1
+        }
+        layer_res = proxy.list_mutex_groups(layer_params)
+        print("互斥组列表:", layer_res["groups"][:1])  # 打印第一个结果
+
+    except Exception as e:
+        print(f"操作失败: {str(e)}")
+        # 这里可以添加重试或回滚逻辑
+
+if __name__ == "__main__":
+    # 初始化日志等配置
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+    main()
