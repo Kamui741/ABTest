@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-14 14:18:24
-LastEditTime: 2025-02-14 14:58:06
+LastEditTime: 2025-02-18 16:02:26
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/test.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/test/mapper_test.py
 '''
 from mappers import FieldMapper
 

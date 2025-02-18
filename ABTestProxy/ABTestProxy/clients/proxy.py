@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:33:49
-LastEditTime: 2025-02-14 16:37:21
+LastEditTime: 2025-02-18 15:21:59
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/ABTestProxy/ABTestProxy/clients/proxy.py
@@ -14,7 +14,6 @@ FilePath: /code/ABTest/ABTestProxy/ABTestProxy/clients/proxy.py
 
 import inspect
 from typing import Dict
-from ..mappers import FieldMapper
 class ABTestProxy:
     # 显式声明V2到V1的映射关系（Key: V2接口名, Value: V1方法名）
     _API_MAPPINGS = {
@@ -26,7 +25,7 @@ class ABTestProxy:
         'list_mutex_groups': 'get_mutex_group_list'
     }
 
-    def __init__(self, v1_client, mapper: FieldMapper):
+    def __init__(self, v1_client, mapper):
         self.v1_client = v1_client
         self.mapper = mapper
 

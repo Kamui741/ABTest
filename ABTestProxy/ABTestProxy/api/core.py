@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:34:42
-LastEditTime: 2025-02-13 17:10:32
+LastEditTime: 2025-02-18 15:20:50
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/api/core.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/api/core.py
 '''
 
 # # ================== 接口实现模块 ==================
@@ -19,7 +19,10 @@ import uuid
 import requests
 import logging
 from typing import Optional, Dict, Any
-from .helpers import post_data, put_data, fetch_data
+from api.helpers import post_data, put_data, fetch_data
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_id: int) -> Optional[Dict[str, Any]]:
     """
     创建实验的完整流程,包含四次连续的 POST 请求。

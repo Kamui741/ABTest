@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:35:07
-LastEditTime: 2025-02-14 11:41:25
+LastEditTime: 2025-02-18 16:02:02
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/api/helpers.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/api/helpers.py
 '''
 
 # [ABTestProxy/api/helpers.py]
@@ -15,8 +15,8 @@ FilePath: /code/ABTest/api/ABTestProxy/api/helpers.py
 
 import requests
 from typing import Optional, Dict, Any
-from ..auth import SessionManager
-from ..config import LOGIN_URL,SESSION_FILE,TARGET_URL
+from auth import SessionManager
+from config import LOGIN_URL,SESSION_FILE,TARGET_URL
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -2,7 +2,11 @@
 主函数调用示例（集成二期接口）
 """
 
-from ABTestProxy import SessionManager, V1Client, FieldMapper
+from auth import SessionManager
+from clients.proxy import  ABTestProxy
+from mappers import FieldMapper
+from clients.v1_client import V1Client
+from config import SESSION_FILE,LOGIN_URL
 
 def main():
     # 初始化会话管理

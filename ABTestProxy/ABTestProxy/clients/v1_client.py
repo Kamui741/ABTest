@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:34:19
-LastEditTime: 2025-02-13 17:10:05
+LastEditTime: 2025-02-18 15:56:26
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/api/ABTestProxy/clients/v1_client.py
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/clients/v1_client.py
 '''
 
 # [ABTestProxy/clients/v1_client.py]
@@ -17,8 +17,8 @@ FilePath: /code/ABTest/api/ABTestProxy/clients/v1_client.py
 #    |- list_layers
 
 from typing import Dict
-from ..auth import SessionManager
-from ..api.core import (
+from auth import SessionManager
+from api.core import (
     create_experiment,
     get_flight_config,
     get_experiment_report,
