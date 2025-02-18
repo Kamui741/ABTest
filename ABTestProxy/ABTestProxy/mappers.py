@@ -84,7 +84,7 @@ class FieldMapper:
 
     def _process_nested_mapping(self, data: Dict, source_spec: Dict,
                                parent_path: List[str], target_field: str) -> Any:
-        """处理嵌套映射结构，包括数组场景"""
+        """处理嵌套映射结构"""
         nested_path = source_spec['path'].split('.')
         current_full_path = parent_path + nested_path
 
@@ -96,15 +96,7 @@ class FieldMapper:
         # 计算新的父级路径（当前路径的父级）
         new_parent_path = current_full_path[:-1]
 
-        # 如果嵌套数据是列表，则对每个元素进行映射
-        if isinstance(nested_data, list):
-            mapped_list = []
-            for item in nested_data:
-                mapped_item = self.transform(item, source_spec['mapping'], new_parent_path)
-                mapped_list.append(mapped_item)
-            return mapped_list
-
-        # 如果不是列表，直接递归处理
+        # 递归处理嵌套映射
         return self.transform(
             nested_data,
             source_spec['mapping'],
@@ -126,10 +118,7 @@ class FieldMapper:
         # 分离路径和默认值
         if self.default_sep in resolved_path:
             path, default_str = resolved_path.split(self.default_sep, 1)
-            try:
-                default = json.loads(default_str)
-            except json.JSONDecodeError:
-                default = default_str
+            default = json.loads(default_str)
         else:
             path = resolved_path
             default = None
@@ -146,24 +135,20 @@ class FieldMapper:
         condition, true_path, false_path = match.groups()
         try:
             # 安全评估条件表达式，仅允许访问data中的字段
-            condition_met = bool(eval(condition, {}, {**data}))
+            condition_met = bool(eval(condition, {}, data))
             return true_path if condition_met else false_path
         except Exception as e:
             logger.warning(f"条件表达式执行失败: {condition} - {str(e)}")
             return false_path
 
     def _resolve_parent_reference(self, path: str, parent_path: List[str]) -> str:
-        """解析路径中的$parent引用，支持多层级递归"""
+        """解析路径中的$parent引用"""
         if '$parent' not in path:
             return path
 
-        # 从后向前寻找有效的父级路径
-        while '$parent' in path and parent_path:
-            parent_str = '.'.join(parent_path[:-1])
-            path = path.replace('$parent', parent_str, 1)
-            parent_path = parent_path[:-1]
-
-        return path
+        # 获取有效的父级路径
+        parent_str = '.'.join(parent_path[:-1]) if parent_path else ''
+        return path.replace('$parent', parent_str)
 
     def _get_nested_value(self, data: Dict, path: List[str], default: Any = None) -> Any:
         """安全获取嵌套数据结构的值"""
