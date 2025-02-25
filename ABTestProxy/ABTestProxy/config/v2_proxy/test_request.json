@@ -1,5 +1,0 @@
-{
-    "flight_name": "experiment_info.name",
-    "duration": "duration||30",
-    "app_id": "project_info.app_id"
-}

@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:19:26
-LastEditTime: 2025-02-14 15:21:29
+LastEditTime: 2025-02-25 16:52:51
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/ABTestProxy/ABTestProxy/auth.py
@@ -22,8 +22,17 @@ import logging
 from typing import Optional, Dict, Any
 from config import USERNAME, PASSWORD
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ABTestAuth")
+
+
+class AuthManager:
+    """V2版本AK/SK认证管理器"""
+    @staticmethod
+    def generate_signature(sk: str, timestamp: int) -> str:
+        message = f"{timestamp}".encode()
+        return hmac.new(sk.encode(), message, hashlib.sha256).hexdigest()
+
 class SessionManager:
     """一期会话管理器"""
     def __init__(self, login_url: str, session_file: str):

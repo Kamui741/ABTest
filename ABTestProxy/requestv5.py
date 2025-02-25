@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 09:44:00
-LastEditTime: 2025-02-19 05:04:36
+LastEditTime: 2025-02-21 16:29:22
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/ABTestProxy/requestv5.py
@@ -98,104 +98,104 @@ class SessionManager:
             return sessionid
         return self.login()
 
-# [ABTestProxy/mappers.py]
-# |- FieldMapper
-#    |- load_mapping
-#    |- transform
-#    |- _get_nested_value
-#    |- _set_nested_value
-"""
-简化版字段映射工具，支持：
-1. 嵌套字段映射
-2. 数组结构映射
-3. 默认值处理
-"""
-import json
-import logging
-from pathlib import Path
-from typing import Dict, List, Any
+# # [ABTestProxy/mappers.py]
+# # |- FieldMapper
+# #    |- load_mapping
+# #    |- transform
+# #    |- _get_nested_value
+# #    |- _set_nested_value
+# """
+# 简化版字段映射工具，支持：
+# 1. 嵌套字段映射
+# 2. 数组结构映射
+# 3. 默认值处理
+# """
+# import json
+# import logging
+# from pathlib import Path
+# from typing import Dict, List, Any
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger(__name__)
 
-class SimpleMapper:
-    def __init__(self, config_path: str = None):
-        self.config_path = Path(config_path) if config_path else None
-        self.default_sep = "||"
+# class SimpleMapper:
+#     def __init__(self, config_path: str = None):
+#         self.config_path = Path(config_path) if config_path else None
+#         self.default_sep = "||"
 
-    def load_mapping(self, api_name: str, direction: str) -> Dict:
-        """加载映射配置"""
-        if not self.config_path:
-            return {}
-        config_file = config_file = self.config_path.joinpath(f"{api_name}_{direction}.json")
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"配置加载失败: {config_file} - {str(e)}")
-            return {}
+#     def load_mapping(self, api_name: str, direction: str) -> Dict:
+#         """加载映射配置"""
+#         if not self.config_path:
+#             return {}
+#         config_file = config_file = self.config_path.joinpath(f"{api_name}_{direction}.json")
+#         try:
+#             with open(config_file, 'r', encoding='utf-8') as f:
+#                 return json.load(f)
+#         except Exception as e:
+#             logger.error(f"配置加载失败: {config_file} - {str(e)}")
+#             return {}
 
-    def transform(self, source_data: Dict, mapping: Dict) -> Dict:
-        """执行字段转换"""
-        result = {}
-        for target_field, source_spec in mapping.items():
-            try:
-                # 处理嵌套映射
-                if isinstance(source_spec, dict):
-                    value = self._process_nested(source_data, source_spec)
-                # 处理普通字段
-                else:
-                    value = self._get_value(source_data, source_spec)
+#     def transform(self, source_data: Dict, mapping: Dict) -> Dict:
+#         """执行字段转换"""
+#         result = {}
+#         for target_field, source_spec in mapping.items():
+#             try:
+#                 # 处理嵌套映射
+#                 if isinstance(source_spec, dict):
+#                     value = self._process_nested(source_data, source_spec)
+#                 # 处理普通字段
+#                 else:
+#                     value = self._get_value(source_data, source_spec)
 
-                if value is not None:
-                    self._set_value(result, target_field, value)
-            except Exception as e:
-                logger.warning(f"字段映射失败 [{target_field}]: {str(e)}")
-        return result
+#                 if value is not None:
+#                     self._set_value(result, target_field, value)
+#             except Exception as e:
+#                 logger.warning(f"字段映射失败 [{target_field}]: {str(e)}")
+#         return result
 
-    def _process_nested(self, data: Dict, spec: Dict) -> Any:
-        """处理嵌套结构"""
-        nested_data = self._get_value(data, spec['path'])
-        if nested_data is None:
-            return None
+#     def _process_nested(self, data: Dict, spec: Dict) -> Any:
+#         """处理嵌套结构"""
+#         nested_data = self._get_value(data, spec['path'])
+#         if nested_data is None:
+#             return None
 
-        # 处理数组类型
-        if isinstance(nested_data, list):
-            return [self.transform(item, spec['mapping']) for item in nested_data]
+#         # 处理数组类型
+#         if isinstance(nested_data, list):
+#             return [self.transform(item, spec['mapping']) for item in nested_data]
 
-        # 处理对象类型
-        return self.transform(nested_data, spec['mapping'])
+#         # 处理对象类型
+#         return self.transform(nested_data, spec['mapping'])
 
-    def _get_value(self, data: Dict, path: str) -> Any:
-        """获取字段值（含默认值处理）"""
-        if self.default_sep in path:
-            path_part, default_part = path.split(self.default_sep, 1)
-            default = json.loads(default_part)
-        else:
-            path_part = path
-            default = None
+#     def _get_value(self, data: Dict, path: str) -> Any:
+#         """获取字段值（含默认值处理）"""
+#         if self.default_sep in path:
+#             path_part, default_part = path.split(self.default_sep, 1)
+#             default = json.loads(default_part)
+#         else:
+#             path_part = path
+#             default = None
 
-        keys = path_part.split('.')
-        current = data
-        for key in keys:
-            if isinstance(current, dict):
-                current = current.get(key, default)
-            elif isinstance(current, list) and key.isdigit():
-                index = int(key)
-                current = current[index] if index < len(current) else default
-            else:
-                return default
-            if current is None:
-                return default
-        return current if current is not None else default
+#         keys = path_part.split('.')
+#         current = data
+#         for key in keys:
+#             if isinstance(current, dict):
+#                 current = current.get(key, default)
+#             elif isinstance(current, list) and key.isdigit():
+#                 index = int(key)
+#                 current = current[index] if index < len(current) else default
+#             else:
+#                 return default
+#             if current is None:
+#                 return default
+#         return current if current is not None else default
 
-    def _set_value(self, data: Dict, path: str, value: Any):
-        """设置嵌套字段值"""
-        keys = path.split('.')
-        current = data
-        for key in keys[:-1]:
-            current = current.setdefault(key, {})
-        current[keys[-1]] = value
+#     def _set_value(self, data: Dict, path: str, value: Any):
+#         """设置嵌套字段值"""
+#         keys = path.split('.')
+#         current = data
+#         for key in keys[:-1]:
+#             current = current.setdefault(key, {})
+#         current[keys[-1]] = value
 
 
 # # ================== 客户端模块 ==================
