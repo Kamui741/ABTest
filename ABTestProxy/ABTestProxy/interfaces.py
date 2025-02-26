@@ -1,33 +1,36 @@
 '''
 Author: ChZheng
-Date: 2025-02-25 14:32:08
-LastEditTime: 2025-02-25 15:52:19
+Date: 2025-02-25 19:36:47
+LastEditTime: 2025-02-26 06:55:50
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/ABTestProxy/ABTestProxy/interfaces.py
 '''
 # ---------------------- interfaces.py ----------------------
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict
 
-class IExperimentService(ABC):
+class IAuthProvider(ABC):
     @abstractmethod
-    def create_experiment(self, name: str, app_id: int, metrics: list) -> Dict[str, Any]:
-        pass
-
-    @abstractmethod
-    def get_details(self, experiment_id: str) -> Dict[str, Any]:
-        pass
-
-    @abstractmethod
-    def generate_report(self, experiment_id: str, start: int, end: int) -> Dict[str, Any]:
+    def get_auth_headers(self) -> Dict[str, str]:
         pass
 
 class IApiClient(ABC):
     @abstractmethod
-    def post(self, endpoint: str, data: dict) -> dict:
+    def create_experiment(self, params: Dict) -> Dict:
         pass
 
     @abstractmethod
-    def get(self, endpoint: str, params: dict) -> dict:
+    def get_experiment_details(self, exp_id: str) -> Dict:
+        pass
+
+class IAdapter(ABC):
+    @staticmethod
+    @abstractmethod
+    def convert_request(params: Dict) -> Dict:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def convert_response(response: Dict) -> Dict:
         pass

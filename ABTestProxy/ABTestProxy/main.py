@@ -1,30 +1,43 @@
-# ---------------------- main.py ----------------------
-from auth import SessionManager
-from services import ServiceFactory
-from config import LOGIN_URL, SESSION_FILE
+# 初始化V2客户端
+auth = V2AKSKAuth()
+client = V2Client(auth)
 
-def main():
-    # 初始化会话（保持不变）
-    session = SessionManager(LOGIN_URL, SESSION_FILE)
+# 创建实验
+response = client.create_experiment(
+    app_id=1001,
+    params={
+        "name": "新用户引导优化V2",
+        "mode": 1,
+        "endpoint_type": 1,
+        "duration": 30,
+        "major_metric": 30001,
+        "metrics": [30001, 30002],
+        "versions": [
+            {
+                "type": 0,
+                "name": "对照组",
+                "config": {"feature_flag": "control"},
+                "weight": 0.5
+            },
+            {
+                "type": 1,
+                "name": "实验组",
+                "config": {"feature_flag": "experiment"},
+                "weight": 0.5
+            }
+        ],
+        "layer_info": {
+            "layer_id": -1,
+            "version_resource": 0.7
+        }
+    }
+)
 
-    # 创建服务实例（修改点）
-    service = ServiceFactory.create(session)
-
-    # 以下调用代码保持不变
-    try:
-        # 创建实验
-        res = service.create_experiment(
-            name="新用户引导优化V2",
-            app_id=1001,
-            metrics=["retention", "conversion"]
-        )
-
-        # 获取详情
-        details = service.get_details(res['id'])
-        print(f"实验详情：{details}")
-
-    except Exception as e:
-        print(f"操作失败：{str(e)}")
-
-if __name__ == "__main__":
-    main()
+# 获取实验报告
+report = client.generate_report(
+    app_id=1001,
+    experiment_id=response["data"]["id"],
+    report_type="day",
+    start_ts=int(datetime(2023, 1, 1).timestamp()),
+    end_ts=int(datetime(2023, 1, 31).timestamp())
+)

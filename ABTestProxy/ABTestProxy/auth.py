@@ -1,107 +1,113 @@
-'''
-Author: ChZheng
-Date: 2025-02-13 14:19:26
-LastEditTime: 2025-02-25 16:52:51
-LastEditors: ChZheng
-Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/auth.py
-'''
-
-# # ================== 核心模块 ==================
-# [ABTestProxy/auth.py]
-# |- SessionManager
-#    |- save_sessionid
-#    |- load_sessionid
-#    |- login
-#    |- validate_session
-#    |- get_valid_session
-#    |- _handle_response
 import os
 import requests
 import logging
 from typing import Optional, Dict, Any
-from config import USERNAME, PASSWORD
+from config import config
+from interfaces import IAuthProvider
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ABTestAuth")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
+class V1SessionAuth(IAuthProvider):
+    """V1会话认证（完整实现原有SessionManager功能）"""
+    def __init__(self):
+        self.login_url = config.V1_LOGIN_URL
+        self.session_file = config.V1_SESSION_FILE
+        self.target_url = config.V1_TARGET_URL
+        self.username = config.V1_USERNAME
+        self.password = config.V1_PASSWORD
+        self._sessionid: Optional[str] = None
 
-class AuthManager:
-    """V2版本AK/SK认证管理器"""
-    @staticmethod
-    def generate_signature(sk: str, timestamp: int) -> str:
-        message = f"{timestamp}".encode()
-        return hmac.new(sk.encode(), message, hashlib.sha256).hexdigest()
+    def get_auth_headers(self) -> Dict[str, str]:
+        """实现IAuthProvider接口"""
+        sessionid = self.get_valid_session()
+        return {"Cookie": f"sessionid={sessionid}"} if sessionid else {}
 
-class SessionManager:
-    """一期会话管理器"""
-    def __init__(self, login_url: str, session_file: str):
-        self.login_url = login_url
-        self.session_file = session_file
+    def get_valid_session(self) -> Optional[str]:
+        """整合原有SessionManager的核心逻辑"""
+        sessionid = self._load_sessionid()
+        if sessionid and self._validate_session(sessionid):
+            return sessionid
+        return self._login()
 
-    def save_sessionid(self, sessionid: str):
-        """保存会话ID"""
-        with open(self.session_file, "w") as f:
-            f.write(sessionid)
-        logger.info(f"Session ID saved to {self.session_file}")
-
-    def load_sessionid(self) -> Optional[str]:
-        """加载会话ID"""
+    def _load_sessionid(self) -> Optional[str]:
+        """加载本地会话ID"""
         if not os.path.exists(self.session_file):
-            logger.warning(f"Session ID file {self.session_file} not found, attempting to log in.")
-            return self.login()
+            return None
         try:
             with open(self.session_file, "r") as f:
-                sessionid = f.read().strip()
-                logger.info(f"Session ID loaded from {self.session_file}")
-                return sessionid
+                return f.read().strip()
         except Exception as e:
-            logger.error(f" Error loading session ID file: {e}")
-            return self.login()
-
-    def _handle_response(self, response: requests.Response) -> Optional[Dict[str, Any]]:
-        """统一处理HTTP响应"""
-        try:
-            response_data = response.json()
-        except requests.JSONDecodeError:
-            logger.error(f" Failed to parse JSON response from {response.url}")
+            logger.error(f"加载会话文件失败: {str(e)}")
             return None
 
-        if response.status_code == 200 and response_data.get("code") == 200:
-            logger.info(f" Request to {response.url} succeeded")
-            return response_data
-        else:
-            logger.error(f" Request failed, status: {response.status_code}, message: {response_data.get('message', 'Unknown error')}")
-            return None
-
-    def login(self) -> Optional[str]:
-        """登录并获取会话ID"""
+    def _save_sessionid(self, sessionid: str):
+        """保存会话ID到文件"""
         try:
-            response = requests.post(self.login_url, json={"email": USERNAME, "password": PASSWORD})
-            response_data = self._handle_response(response)
-            if response_data:
-                sessionid = response.cookies.get("sessionid")
-                if sessionid:
-                    self.save_sessionid(sessionid)
-                    return sessionid
-                logger.warning("Login successful but session ID not found in response cookies")
-        except requests.RequestException as e:
-            logger.error(f" Login request failed: {e}")
-        return None
+            with open(self.session_file, "w") as f:
+                f.write(sessionid)
+            logger.info(f"会话ID已保存至 {self.session_file}")
+        except Exception as e:
+            logger.error(f"会话ID保存失败: {str(e)}")
 
-    def validate_session(self, sessionid: str, test_url: str) -> bool:
-        """验证会话ID是否有效"""
-        headers = {"Cookie": f"sessionid={sessionid}"}
+    def _validate_session(self, sessionid: str) -> bool:
+        """验证会话有效性"""
         try:
-            response = requests.get(test_url, headers=headers)
-            return bool(self._handle_response(response))
+            response = requests.get(
+                self.target_url,
+                headers={"Cookie": f"sessionid={sessionid}"},
+                timeout=5
+            )
+            return self._handle_response(response) is not None
         except requests.RequestException as e:
-            logger.error(f" Failed to validate session: {e}")
+            logger.error(f"会话验证请求失败: {str(e)}")
             return False
 
-    def get_valid_session(self, test_url: str) -> Optional[str]:
-        """获取有效的会话ID"""
-        sessionid = self.load_sessionid()
-        if sessionid and self.validate_session(sessionid, test_url):
-            return sessionid
-        return self.login()
+    def _handle_response(self, response: requests.Response) -> Optional[Dict]:
+        """统一处理响应"""
+        try:
+            data = response.json()
+            if response.status_code == 200 and data.get("code") == 200:
+                return data
+            logger.error(f"请求失败: {data.get('message', '未知错误')}")
+            return None
+        except Exception as e:
+            logger.error(f"响应解析失败: {str(e)}")
+            return None
+
+    def _login(self) -> Optional[str]:
+        """执行登录流程"""
+        try:
+            response = requests.post(
+                self.login_url,
+                json={"email": self.username, "password": self.password},
+                timeout=10
+            )
+            data = self._handle_response(response)
+
+            if data and (sessionid := response.cookies.get("sessionid")):
+                self._save_sessionid(sessionid)
+                self._sessionid = sessionid
+                logger.info("登录成功，获取到有效会话ID")
+                return sessionid
+
+            logger.warning("登录成功但未获取到会话ID")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"登录请求失败: {str(e)}")
+            return None
+
+class V2AKSKAuth(IAuthProvider):
+    """V2 AK/SK认证"""
+    def get_auth_headers(self) -> Dict[str, str]:
+        timestamp = str(int(time.time() * 1000))
+        signature = hmac.new(
+            config.V2_SECRET_KEY.encode(),
+            f"{timestamp}\n{config.V2_ACCESS_KEY}".encode(),
+            hashlib.sha256
+        ).hexdigest()
+        return {
+            "X-Access-Key": config.V2_ACCESS_KEY,
+            "X-Timestamp": timestamp,
+            "X-Signature": signature
+        }
