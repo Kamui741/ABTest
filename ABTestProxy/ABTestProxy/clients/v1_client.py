@@ -1,3 +1,11 @@
+'''
+Author: ChZheng
+Date: 2025-02-26 08:51:59
+LastEditTime: 2025-02-26 15:01:19
+LastEditors: ChZheng
+Description:
+FilePath: /code/ABTest/ABTestProxy/ABTestProxy/clients/v1_client.py
+'''
 # ---------------------- clients/v1_client.py ----------------------
 from typing import Dict, Any
 from interfaces import IApiClient
@@ -70,7 +78,3 @@ class V1Client(IApiClient):
             need_default=params.get('need_default', False)
         )
 
-    # 保持与IApiClient接口兼容
-    def get_experiment_details(self, exp_id: str) -> Dict:
-        """接口兼容实现（参数适配在Adapter处理）"""
-        return super().get_experiment_details(exp_id)

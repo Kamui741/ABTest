@@ -1,14 +1,26 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:22:35
-LastEditTime: 2025-02-26 07:19:01
+LastEditTime: 2025-02-26 16:32:30
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/proxy.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/proxy.py
 '''
 # ---------------------- proxy.py ----------------------
+from typing import Dict, Any
+from interfaces import IApiClient, IAdapter  # 假设已有这些接口定义
+
 class ABTestProxy:
     """增强的代理服务"""
+
+    def __init__(self, client: IApiClient, adapter: IAdapter):
+        """
+        初始化代理服务
+        :param client: 具体版本的客户端实例（V1Client/V2Client）
+        :param adapter: 协议适配器实例
+        """
+        self.client = client
+        self.adapter = adapter
 
     def create_experiment(self, params: Dict) -> Dict:
         converted_params = self.adapter.convert_create_request(params)

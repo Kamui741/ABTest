@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-25 19:36:47
-LastEditTime: 2025-02-26 07:33:28
+LastEditTime: 2025-02-26 17:30:00
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/config.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/config.py
 '''
 # ---------------------- config.py ----------------------
 import os
@@ -23,8 +23,8 @@ class ABTestConfig:
         # 基础配置
         cls.SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
         cls.LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
-        cls.USERNAME = os.getenv("USERNAME", "admin")
-        cls.PASSWORD = os.getenv("PASSWORD", "admin123")
+        cls.USERNAME = os.getenv("USERNAME")
+        cls.PASSWORD = os.getenv("PASSWORD")
 
         # V2认证配置
         cls.V2_ACCESS_KEY = os.getenv("V2_ACCESS_KEY")
@@ -33,8 +33,8 @@ class ABTestConfig:
         # 版本配置
         cls.RUNTIME_MODE = os.getenv('RUNTIME_MODE', 'V1')  # V1/V2
         cls.BASE_URLS = {
-            'V1': 'https://28.4.136.142/datatester/api/v1',
-            'V2': 'https://28.4.136.142/datatester/api/v2'
+            'V1': os.getenv('V1_BASE_URL', 'https://default-v1.example.com'),
+            'V2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
         }
         cls.API_ENDPOINTS = {
             'create_experiment': {
@@ -43,7 +43,7 @@ class ABTestConfig:
             },
             'get_details': {
                 'V1': 'experiment/detail',
-                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}'
+                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/details'
             },
             'generate_report': {
                 'V1': 'report/generate',

@@ -1,20 +1,15 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:34:42
-LastEditTime: 2025-02-26 07:19:16
+LastEditTime: 2025-02-26 16:39:04
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/api/core.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/api/core.py
 '''
 
 # # ================== 接口实现模块 ==================
 # [ABTestProxy/api/core.py]
-# |- create_experiment
-# |- get_flight_config
-# |- get_metric_list
-# |- update_flight_status
-# |- get_experiment_report
-# |- get_mutex_group_list
+
 import uuid
 import requests
 import logging

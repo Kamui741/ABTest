@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class V1SessionAuth(IAuthProvider):
-    """V1会话认证（完整实现原有SessionManager功能）"""
+    """V1会话认证"""
     def __init__(self):
         self.login_url = config.V1_LOGIN_URL
         self.session_file = config.V1_SESSION_FILE

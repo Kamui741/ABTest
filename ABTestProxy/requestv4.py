@@ -1,6 +1,7 @@
 
 # # ================== 接口实现模块 ==================
 # [ABTestProxy/api/core.py]
+
 import uuid
 import requests
 import logging
@@ -129,48 +130,78 @@ def get_mutex_group_list(app_id: int, keyword: str = "", status: int = 1, need_p
         "need_default": str(need_default).lower()
     }
     return fetch_data(url, params=params)
-# api/helper.py
 
+# helpers.py
+# api/helpers.py
 import requests
-from typing import Optional, Dict, Any
-from auth import SessionManager
-from config import LOGIN_URL,SESSION_FILE,TARGET_URL
 import logging
+import hmac
+import hashlib
+import time
+from typing import Optional, Dict, Any, Union
+from auth import SessionManager, V2AKSKAuth
+from config import config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-def send_request(method: str, url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
-    """发送HTTP请求"""
-    session_manager = SessionManager(LOGIN_URL, SESSION_FILE)
-    sessionid = session_manager.get_valid_session(TARGET_URL)
-    if not sessionid:
-        logger.error(" Failed to get a valid session")
-        return None
 
-    headers = {"Cookie": f"sessionid={sessionid}"}
-    if json_data:
+
+
+
+def send_request(
+    method: str,
+    url: str,
+    params: Optional[Dict] = None,
+    data: Optional[Dict] = None,
+    json_data: Optional[Dict] = None,
+    auth_type: str = 'v1'
+) -> Optional[Dict]:
+    """多版本兼容请求方法"""
+    headers = {}
+
+    # V1认证流程
+    if auth_type == 'v1':
+        session_manager = SessionManager(config.LOGIN_URL, config.SESSION_FILE)
+        sessionid = session_manager.get_valid_session(config.BASE_URLS['V1'])
+        headers = {"Cookie": f"sessionid={sessionid}"}
+
+    # V2认证流程
+    elif auth_type == 'v2':
+        headers.update(V2AKSKAuth.generate_headers())
+
+    # 智能设置Content-Type
+    if json_data and "Content-Type" not in headers:
         headers["Content-Type"] = "application/json"
 
     try:
-        response = requests.request(method, url, headers=headers, data=data, json=json_data, params=params)
-        return session_manager._handle_response(response)
-    except requests.RequestException as e:
-        logger.error(f" Error occurred while making {method} request: {e}")
+        response = requests.request(
+            method=method,
+            url=url,
+            headers=headers,
+            params=params,
+            data=data,
+            json=json_data,
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.HTTPError as e:
+        logger.error(f"请求失败: {e.response.status_code} {e.response.text}")
+        return {"code": e.response.status_code, "message": "API请求错误"}
+    except Exception as e:
+        logger.error(f"请求异常: {str(e)}")
         return None
 
-def fetch_data(url: str, params: Optional[Dict[str, Any]] = None):
-    """发送GET请求"""
-    return send_request("GET", url, params=params)
+# 保持原有快捷方法（新增auth_type参数）
+def fetch_data(url: str, params: Optional[Dict] = None, auth_type: str = 'v1') -> Optional[Dict]:
+    return send_request('GET', url, params=params, auth_type=auth_type)
 
-def post_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None):
-    """发送POST请求"""
-    return send_request("POST", url, data=data, json_data=json_data)
+def post_data(url: str, json_data: Optional[Dict] = None, auth_type: str = 'v1') -> Optional[Dict]:
+    return send_request('POST', url, json_data=json_data, auth_type=auth_type)
 
-def put_data(url: str, data: Optional[Dict[str, Any]] = None, json_data: Optional[Dict[str, Any]] = None):
-    """发送PUT请求"""
-    return send_request("PUT", url, data=data, json_data=json_data)
+def put_data(url: str, json_data: Optional[Dict] = None, auth_type: str = 'v1') -> Optional[Dict]:
+    return send_request('PUT', url, json_data=json_data, auth_type=auth_type)
 
-# clients/v1_clients.py
 # ---------------------- clients/v1_client.py ----------------------
 from typing import Dict, Any
 from interfaces import IApiClient
@@ -243,132 +274,125 @@ class V1Client(IApiClient):
             need_default=params.get('need_default', False)
         )
 
-    # 保持与IApiClient接口兼容
-    def get_experiment_details(self, exp_id: str) -> Dict:
-        """接口兼容实现（参数适配在Adapter处理）"""
-        return super().get_experiment_details(exp_id)
-# clients/v2_clients.py
-# ---------------------- clients/v2_client.py ----------------------
-import requests
-from typing import Dict, Any
+
+# clients/v2_client.py 修改URL生成逻辑
+from typing import Dict, Any, Optional
 from interfaces import IApiClient
+from api.helpers import post_data, fetch_data, put_data
 from config import config
 
 class V2Client(IApiClient):
-    """完整的V2客户端实现"""
+    """适配config.py的V2客户端实现"""
 
-    def create_experiment(self, app_id: int, params: Dict) -> Dict:
-        """
-        创建实验
-        接口路径：POST /openapi/v2/apps/{app_id}/experiments
-        """
-        endpoint = config.get_endpoint('create_experiment').format(app_id=app_id)
-        required_fields = ['name', 'mode', 'endpoint_type', 'duration',
+    def create_experiment(self, params: Dict) -> Dict:
+        required_fields = ['name', 'mode', 'app_id', 'duration',
                          'major_metric', 'metrics', 'versions']
+        if missing := [f for f in required_fields if f not in params]:
+            return self._error_response(f"缺少必要字段: {missing}")
 
-        if not all(field in params for field in required_fields):
-            return self._error_response("Missing required fields")
-
-        payload = {
-            "name": params["name"],
-            "mode": params["mode"],
-            "endpoint_type": params["endpoint_type"],
-            "duration": params["duration"],
-            "major_metric": params["major_metric"],
-            "metrics": params["metrics"],
-            "versions": self._build_versions(params["versions"]),
-            "layer_info": params.get("layer_info", {"layer_id": -1}),
-            "description": params.get("description", "")
-        }
-        return self._send_request('POST', endpoint, payload)
-
-    def get_details(self, app_id: int, experiment_id: int) -> Dict:
-        """
-        获取实验详情
-        接口路径：GET /openapi/v2/apps/{app_id}/experiments/{experiment_id}
-        """
-        endpoint = config.get_endpoint('get_details').format(
-            app_id=app_id,
-            experiment_id=experiment_id
+        return post_data(
+            url=self._build_url('create_experiment', app_id=params['app_id']),
+            json_data={
+                "name": params["name"],
+                "mode": params["mode"],
+                "endpoint_type": params.get("endpoint_type", 1),
+                "duration": params["duration"],
+                "major_metric": params["major_metric"],
+                "metrics": params["metrics"],
+                "versions": self._build_versions(params["versions"]),
+                "layer_info": params.get("layer_info", {"layer_id": -1})
+            },
+            auth_type='v2'
         )
-        return self._send_request('GET', endpoint, {})
 
-    def generate_report(self, app_id: int, experiment_id: int,
-                      report_type: str, start_ts: int, end_ts: int) -> Dict:
-        """
-        生成实验报告
-        接口路径：GET /openapi/v2/apps/{app_id}/experiments/{experiment_id}/metrics
-        """
-        endpoint = config.get_endpoint('generate_report').format(
-            app_id=app_id,
-            experiment_id=experiment_id
+    def get_experiment_details(self, params: Dict) -> Dict:
+        return fetch_data(
+            url=self._build_url('get_details',
+                app_id=params['app_id'],
+                experiment_id=params['experiment_id']
+            ),
+            auth_type='v2'
         )
-        params = {
-            "report_type": report_type,
-            "start_ts": start_ts,
-            "end_ts": end_ts
-        }
-        return self._send_request('GET', endpoint, params)
 
-    def modify_status(self, app_id: int, experiment_id: int, action: str) -> Dict:
-        """
-        修改实验状态
-        接口路径：PUT /openapi/v2/apps/{app_id}/experiments/{experiment_id}/[launch|stop]
-        """
+    def generate_report(self, params: Dict) -> Dict:
+        return fetch_data(
+            url=self._build_url('generate_report',
+                app_id=params['app_id'],
+                experiment_id=params['experiment_id']
+            ),
+            params={
+                "report_type": params['report_type'],
+                "start_ts": params['start_ts'],
+                "end_ts": params['end_ts']
+            },
+            auth_type='v2'
+        )
+
+    def modify_experiment_status(self, params: Dict) -> Dict:
         valid_actions = ["launch", "stop"]
-        if action not in valid_actions:
-            return self._error_response(f"Invalid action. Valid options: {valid_actions}")
+        if params['action'] not in valid_actions:
+            return self._error_response(f"无效操作, 可选值: {valid_actions}")
 
-        endpoint = config.get_endpoint('modify_status').format(
-            app_id=app_id,
-            experiment_id=experiment_id,
-            action=action
+        return put_data(
+            url=self._build_url('modify_status',
+                app_id=params['app_id'],
+                experiment_id=params['experiment_id'],
+                action=params['action']
+            ),
+            auth_type='v2'
         )
-        return self._send_request('PUT', endpoint, {})
 
-    def list_metrics(self, app_id: int, keyword: str = "",
-                   page: int = 1, page_size: int = 10) -> Dict:
-        """
-        获取指标列表
-        接口路径：GET /openapi/v2/apps/{app_id}/metrics
-        """
-        endpoint = config.get_endpoint('list_metrics').format(app_id=app_id)
-        params = {
-            "keyword": keyword,
-            "page": page,
-            "page_size": page_size
-        }
-        return self._send_request('GET', endpoint, params)
+    def list_metrics(self, params: Dict) -> Dict:
+        return fetch_data(
+            url=self._build_url('list_metrics', app_id=params['app_id']),
+            params={
+                "keyword": params.get('keyword', ''),
+                "page": params.get('page', 1),
+                "page_size": params.get('page_size', 10)
+            },
+            auth_type='v2'
+        )
 
-    def list_groups(self, app_id: int, keyword: str = "",
-                  page: int = 1, page_size: int = 10) -> Dict:
-        """
-        获取互斥组列表
-        接口路径：GET /openapi/v2/apps/{app_id}/layers
-        """
-        endpoint = config.get_endpoint('list_groups').format(app_id=app_id)
-        params = {
-            "keyword": keyword,
-            "page": page,
-            "page_size": page_size
-        }
-        return self._send_request('GET', endpoint, params)
+    def list_groups(self, params: Dict) -> Dict:
+        return fetch_data(
+            url=self._build_url('list_groups', app_id=params['app_id']),
+            params={
+                "keyword": params.get('keyword', ''),
+                "page": params.get('page', 1),
+                "page_size": params.get('page_size', 10)
+            },
+            auth_type='v2'
+        )
+
+    def _build_url(self, endpoint_name: str,**path_params) -> str:
+        """使用config配置生成完整URL"""
+        base_url = config.BASE_URLS['V2']
+        endpoint_template = config.API_ENDPOINTS[endpoint_name]['V2']
+        return f"{base_url}/{endpoint_template.format(**path_params)}"
+
 
     def _build_versions(self, versions: list) -> list:
-        """构建版本数据"""
+        allowed_config_keys = {"color", "size"}
         return [{
             "type": v["type"],
             "name": v["name"],
             "description": v.get("description", ""),
-            "weight": v.get("weight"),
-            "config": v["config"],
+            "weight": v.get("weight", 50),
+            "config": {k: v for k, v in v.get("config", {}).items()
+                      if k in allowed_config_keys},
             "users": [{
                 "ssids": user.get("ssids", []),
                 "type": user.get("type", "id")
             } for user in v.get("users", [])]
         } for v in versions]
-# adapters.py
 
+    def _error_response(self, message: str) -> Dict:
+        return {"code": 400, "message": message}
+
+
+# ---------------------- adapters.py ----------------------
+from interfaces import IAdapter
+from typing import Dict
 class V1Adapter(IAdapter):
     """增强的V1协议适配器"""
 
@@ -402,18 +426,35 @@ class V1Adapter(IAdapter):
 
     @staticmethod
     def convert_detail_response(response: Dict) -> Dict:
-        """V2->V1 详情响应转换"""
         v2_data = response.get("data", {})
         return {
             "id": v2_data.get("id"),
             "name": v2_data.get("name"),
-            "status": v2_data.get("status"),
+            "status": V1Adapter._convert_status(v2_data.get("status")),  # 状态码转换
+            "start_ts": v2_data.get("start_ts"),
+            "end_ts": v2_data.get("end_ts"),
             "versions": [{
                 "id": v["id"],
                 "name": v["name"],
-                "type": v["type"]
-            } for v in v2_data.get("versions", [])]
+                "type": v["type"],
+                "weight": v.get("weight", 0)
+            } for v in v2_data.get("versions", [])],
+            "metrics": [{
+                "id": m["id"],
+                "name": m["name"],
+                "type": "major" if m["id"] == v2_data.get("major_metric") else "normal"
+            } for m in v2_data.get("metrics", [])]
         }
+
+    @staticmethod
+    def _convert_status(v2_status: str) -> int:
+        """V2状态码转V1状态码"""
+        status_map = {
+            "RUNNING": 1,
+            "STOPPED": 0,
+            "DRAFT": 4
+        }
+        return status_map.get(v2_status, -1)
 
     @staticmethod
     def convert_report_response(response: Dict) -> Dict:
@@ -427,6 +468,44 @@ class V1Adapter(IAdapter):
             } for m in v2_data.get("metrics", [])]
         }
 
+    @staticmethod
+    def convert_metric_response(response: Dict) -> Dict:
+        """V2->V1 指标列表响应转换"""
+        v2_data = response.get("data", {})
+        return {
+            "metrics": [{
+                "id": m["id"],
+                "name": m["name"],
+                "is_required": 0 if m.get("is_support_major", False) else 1,
+                "metric_type": m.get("type", "normal"),
+                "description": m.get("description", "")
+            } for m in v2_data.get("metrics", [])],
+            "page_info": {
+                "current_page": v2_data.get("page", {}).get("current_page", 1),
+                "total_pages": v2_data.get("page", {}).get("total_page", 1),
+                "total_items": v2_data.get("page", {}).get("total_items", 0)
+            }
+        }
+
+    @staticmethod
+    def convert_group_response(response: Dict) -> Dict:
+        """V2->V1 互斥组列表响应转换"""
+        v2_data = response.get("data", [])
+        return {
+            "groups": [{
+                "id": g["id"],
+                "name": g["name"],
+                "available_traffic": g.get("available_traffic", 0),
+                "layer_type": "client" if g.get("type") == "client" else "server",
+                "description": g.get("description", "")
+            } for g in v2_data],
+            "page_info": {
+                "current_page": 1,  # V2分页参数需根据实际返回补充
+                "total_pages": 1,
+                "total_items": len(v2_data)
+            }
+        }
+
 class V2Adapter(IAdapter):
     """V2透传适配器"""
     @staticmethod
@@ -436,7 +515,9 @@ class V2Adapter(IAdapter):
     @staticmethod
     def convert_response(response: Dict) -> Dict:
         return response
+
 # auth.py
+
 import os
 import requests
 import logging
@@ -448,7 +529,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class V1SessionAuth(IAuthProvider):
-    """V1会话认证（完整实现原有SessionManager功能）"""
+    """V1会话认证"""
     def __init__(self):
         self.login_url = config.V1_LOGIN_URL
         self.session_file = config.V1_SESSION_FILE
@@ -551,8 +632,9 @@ class V2AKSKAuth(IAuthProvider):
             "X-Signature": signature
         }
 
-# config.py
 
+
+# ---------------------- config.py ----------------------
 import os
 
 class ABTestConfig:
@@ -569,8 +651,8 @@ class ABTestConfig:
         # 基础配置
         cls.SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
         cls.LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
-        cls.USERNAME = os.getenv("USERNAME", "admin")
-        cls.PASSWORD = os.getenv("PASSWORD", "admin123")
+        cls.USERNAME = os.getenv("USERNAME")
+        cls.PASSWORD = os.getenv("PASSWORD")
 
         # V2认证配置
         cls.V2_ACCESS_KEY = os.getenv("V2_ACCESS_KEY")
@@ -579,33 +661,33 @@ class ABTestConfig:
         # 版本配置
         cls.RUNTIME_MODE = os.getenv('RUNTIME_MODE', 'V1')  # V1/V2
         cls.BASE_URLS = {
-            'V1': 'https://28.4.136.142/datatester/api/v1',
-            'V2': 'https://28.4.136.142/datatester/api/v2'
+            'V1': os.getenv('V1_BASE_URL', 'https://default-v1.example.com'),
+            'V2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
         }
         cls.API_ENDPOINTS = {
             'create_experiment': {
                 'V1': 'experiment/create',
-                'V2': 'experiments'
+                'V2': 'openapi/v2/apps/{app_id}/experiments'
             },
             'get_details': {
                 'V1': 'experiment/detail',
-                'V2': 'experiments/{id}'
+                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}'
             },
             'generate_report': {
                 'V1': 'report/generate',
-                'V2': 'reports'
+                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/metrics'
             },
             'modify_status': {
                 'V1': 'experiment/status',
-                'V2': 'experiments/{id}/status'
+                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}'
             },
             'list_metrics': {
                 'V1': 'metrics',
-                'V2': 'metrics'
+                'V2': 'openapi/v2/apps/{app_id}/metrics'
             },
             'list_groups': {
                 'V1': 'groups',
-                'V2': 'mutex-groups'
+                'V2': 'openapi/v2/apps/{app_id}/layers'
             }
         }
 
@@ -618,8 +700,8 @@ class ABTestConfig:
         return template.format(**params)
 
 config = ABTestConfig()
-# factories.py
 
+# ---------------------- factories.py ----------------------
 from interfaces import IAuthProvider, IApiClient, IAdapter
 from auth import V1SessionAuth, V2AKSKAuth
 from clients import V1Client, V2Client
@@ -646,39 +728,89 @@ class AdapterFactory:
         if config.RUNTIME_MODE == 'V1':
             return V1Adapter()
         return V2Adapter()
-# interfaces.py
 
+    # ---------------------- interfaces.py ----------------------
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 
 class IAuthProvider(ABC):
     @abstractmethod
     def get_auth_headers(self) -> Dict[str, str]:
+        """获取认证头信息"""
         pass
 
 class IApiClient(ABC):
     @abstractmethod
     def create_experiment(self, params: Dict) -> Dict:
+        """创建实验（需实现参数校验）"""
         pass
 
     @abstractmethod
     def get_experiment_details(self, exp_id: str) -> Dict:
+        """获取实验详情（需支持多种ID格式）"""
+        pass
+
+    @abstractmethod
+    def generate_report(self, params: Dict) -> Dict:
+        """生成实验报告（需处理时间范围校验）"""
+        pass
+
+    @abstractmethod
+    def modify_experiment_status(self, exp_id: str, action: str) -> Dict:
+        """修改实验状态（需实现状态机校验）"""
+        pass
+
+    @abstractmethod
+    def list_available_metrics(self, params: Dict) -> Dict:
+        """获取指标列表（需支持分页）"""
+        pass
+
+    @abstractmethod
+    def list_mutex_groups(self, params: Dict) -> Dict:
+        """获取互斥组列表（需支持关键字过滤）"""
         pass
 
 class IAdapter(ABC):
     @staticmethod
     @abstractmethod
-    def convert_request(params: Dict) -> Dict:
+    def convert_create_request(params: Dict) -> Dict:
+        """转换创建实验请求参数"""
         pass
 
     @staticmethod
     @abstractmethod
-    def convert_response(response: Dict) -> Dict:
+    def convert_detail_response(response: Dict) -> Dict:
+        """转换实验详情响应格式"""
         pass
-# proxy.py
+
+    @staticmethod
+    @abstractmethod
+    def convert_report_response(response: Dict) -> Dict:
+        """转换实验报告响应格式"""
+        pass
+
+    @classmethod
+    @abstractmethod
+    def convert_metric_response(cls, response: Dict) -> Dict:
+        """转换指标列表响应格式"""
+        pass
+
+
+    # ---------------------- proxy.py ----------------------
+from typing import Dict, Any
+from interfaces import IApiClient, IAdapter  # 假设已有这些接口定义
 
 class ABTestProxy:
     """增强的代理服务"""
+
+    def __init__(self, client: IApiClient, adapter: IAdapter):
+        """
+        初始化代理服务
+        :param client: 具体版本的客户端实例（V1Client/V2Client）
+        :param adapter: 协议适配器实例
+        """
+        self.client = client
+        self.adapter = adapter
 
     def create_experiment(self, params: Dict) -> Dict:
         converted_params = self.adapter.convert_create_request(params)
@@ -724,18 +856,3 @@ class ABTestProxy:
                 "name": g["name"]
             } for g in raw_response.get("data", [])]
         }
-# main.py
-from proxy import ABTestProxy
-
-# 初始化代理（自动根据配置选择版本）
-proxy = ABTestProxy()
-
-# 创建实验（自动转换协议）
-response = proxy.create_experiment({
-    "name": "新用户引导实验",
-    "app_id": 1001,
-    "duration": 30
-})
-
-# 获取实验详情
-details = proxy.get_experiment_details(response["data"]["experiment_id"])

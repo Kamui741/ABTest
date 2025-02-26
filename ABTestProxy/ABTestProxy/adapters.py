@@ -1,12 +1,14 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-02-26 07:45:23
+LastEditTime: 2025-02-26 14:41:34
 LastEditors: ChZheng
 Description:
 FilePath: /code/ABTest/ABTestProxy/ABTestProxy/adapters.py
 '''
 # ---------------------- adapters.py ----------------------
+from interfaces import IAdapter
+from typing import Dict
 class V1Adapter(IAdapter):
     """增强的V1协议适配器"""
 
@@ -40,18 +42,35 @@ class V1Adapter(IAdapter):
 
     @staticmethod
     def convert_detail_response(response: Dict) -> Dict:
-        """V2->V1 详情响应转换"""
         v2_data = response.get("data", {})
         return {
             "id": v2_data.get("id"),
             "name": v2_data.get("name"),
-            "status": v2_data.get("status"),
+            "status": V1Adapter._convert_status(v2_data.get("status")),  # 状态码转换
+            "start_ts": v2_data.get("start_ts"),
+            "end_ts": v2_data.get("end_ts"),
             "versions": [{
                 "id": v["id"],
                 "name": v["name"],
-                "type": v["type"]
-            } for v in v2_data.get("versions", [])]
+                "type": v["type"],
+                "weight": v.get("weight", 0)
+            } for v in v2_data.get("versions", [])],
+            "metrics": [{
+                "id": m["id"],
+                "name": m["name"],
+                "type": "major" if m["id"] == v2_data.get("major_metric") else "normal"
+            } for m in v2_data.get("metrics", [])]
         }
+
+    @staticmethod
+    def _convert_status(v2_status: str) -> int:
+        """V2状态码转V1状态码"""
+        status_map = {
+            "RUNNING": 1,
+            "STOPPED": 0,
+            "DRAFT": 4
+        }
+        return status_map.get(v2_status, -1)
 
     @staticmethod
     def convert_report_response(response: Dict) -> Dict:
