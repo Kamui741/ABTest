@@ -4,6 +4,8 @@ from interfaces import IApiClient
 from api.helpers import post_data, fetch_data, put_data
 from config import config
 # TODO: 分离功能函数
+# TODO: web接口化改造
+# TODO: v1v2参数化导入
 class V2Client(IApiClient):
     """适配config.py的V2客户端实现"""
 

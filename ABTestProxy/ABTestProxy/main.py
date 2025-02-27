@@ -2,10 +2,13 @@
 from config import config
 from factories import AuthFactory, ClientFactory
 
+#TODO: 登录步骤太多
+# TODO: authfactory 没用
 def test_v1_functions():
     """测试V1全部六个功能"""
     print("\n============== V1功能测试 ==============")
-    config.RUNTIME_MODE = 'V1'
+    config.RUNTIME_MODE = 'V1' # 传参数分版本
+
     client = ClientFactory.create(AuthFactory.create())
 
     # 测试数据
