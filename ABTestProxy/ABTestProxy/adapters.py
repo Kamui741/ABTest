@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-02-26 14:41:34
+LastEditTime: 2025-02-28 17:12:54
 LastEditors: ChZheng
 Description:
-FilePath: /code/ABTest/ABTestProxy/ABTestProxy/adapters.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
 '''
 # ---------------------- adapters.py ----------------------
 from interfaces import IAdapter
@@ -13,54 +13,121 @@ class V1Adapter(IAdapter):
     """增强的V1协议适配器"""
 
     @staticmethod
-    def convert_create_request(params: Dict) -> Dict:
+    def convert_create_experiment_request(params: Dict) -> Dict:
         """V1->V2 创建实验参数转换"""
         return {
-            "app_id": params["app_id"],
-            "name": params["flight_name"],  # 字段名转换
-            "mode": 1,  # 固定值
-            "endpoint_type": params.get("endpoint_type", 1),
-            "duration": params["duration"],
-            "major_metric": params["major_metric"],
-            "metrics": params["metrics"],
-            "versions": [{
-                "type": v["type"],
-                "name": v["name"],
-                "config": v["config"]
-            } for v in params["versions"]],
-            "layer_info": params.get("layer_info")
+            "flight_name" : params["name"],
+            "duration":params["duration"],
+            "hash_strategy":"ssid",
+            "app_id":params["app_id"],
         }
 
     @staticmethod
-    def convert_create_response(response: Dict) -> Dict:
+    def convert_create_experiment_response(response: Dict) -> Dict:
         """V2->V1 创建实验响应转换"""
+        return response
+
+    @staticmethod
+    def convert_get_experiment_details_request(params: Dict) -> Dict:
+        """V1->V2 查询实验详情参数转换"""
         return {
-            "code": response.get("code", 200),
-            "message": response.get("message", "success"),
-            "data": response.get("data")  # 直接返回V2的实验ID
+            "flight_id": params["experiment_id"],
+            "is_duplicate": False
         }
 
     @staticmethod
-    def convert_detail_response(response: Dict) -> Dict:
-        v2_data = response.get("data", {})
+    def convert_get_experiment_details_response(response: Dict) -> Dict:
+
         return {
-            "id": v2_data.get("id"),
-            "name": v2_data.get("name"),
-            "status": V1Adapter._convert_status(v2_data.get("status")),  # 状态码转换
-            "start_ts": v2_data.get("start_ts"),
-            "end_ts": v2_data.get("end_ts"),
-            "versions": [{
-                "id": v["id"],
-                "name": v["name"],
-                "type": v["type"],
-                "weight": v.get("weight", 0)
-            } for v in v2_data.get("versions", [])],
-            "metrics": [{
-                "id": m["id"],
-                "name": m["name"],
-                "type": "major" if m["id"] == v2_data.get("major_metric") else "normal"
-            } for m in v2_data.get("metrics", [])]
+            "code":200,
+            "data": {
+                "id": 3799,
+                "name": "实时指标报告测试",
+                "start_ts": "2020-07-08 11:39:02",
+                "end_ts": "2021-07-08 11:39:02",
+                "owner": "203870",
+                "description": "",
+                "status": 1,
+                "type": "client",
+                "mode": 1,
+                "layer": {
+                "name": "互斥组1",
+                "status": 1,
+                "description": "LS的测试场景五实验时创建时默认层",
+                "type": "NULL"
+                },
+                "version_resource": 1.0,
+                "versions": [
+                {
+                    "id": 8572,
+                    "name": "对照版本",
+                    "type": 0,
+                    "config": {
+                    "hello12341": False
+                    },
+                    "description": "",
+                    "weight": 30
+                },
+                ...
+                ],
+                "metrics": [
+                {
+                    "id": 10065,
+                    "name": "测试指标",
+                    "metric_description": "测试指标描述",
+                    "type": "major",
+                    "support_conf": True,
+                    "offline": False,
+                    "dsl": {
+                    "queries": [
+                        {
+                        "show_label": "A",
+                        "event_type": "origin",
+                        "show_name": "活跃均次（pv/au）",
+                        "event_name": "predefine_pageview",
+                        "filters": [
+                            {
+                            "property_operation": "!=",
+                            "property_type": "event_param",
+                            "property_name": "title",
+                            "property_values": [
+                                "这是一个title"
+                            ]
+                            }
+                        ]
+                        },
+                        ...
+                    ],
+                    "event_relation": "A*1"
+                    },
+                    "composed": False
+                }
+                ],
+                "features": {
+                "id": -1,
+                "name": "",
+                "key": ""
+                },
+                "filter": "",
+                "whitelist": [
+                {
+                    "对照版本": [
+                    {
+                        "ssids": ["bbc33321-4352-4b95-91d1-lishanlishanlishan"],
+                        "id": 81,
+                        "is_deleted": False,
+                        "name": "李珊",
+                        "description": "",
+                        "tags": []
+                    }
+                    ]
+                }
+                ]
+            },
+            "message": "success"
         }
+
+
 
     @staticmethod
     def _convert_status(v2_status: str) -> int:
@@ -73,54 +140,45 @@ class V1Adapter(IAdapter):
         return status_map.get(v2_status, -1)
 
     @staticmethod
-    def convert_report_response(response: Dict) -> Dict:
+    def convert_generate_report_request(params: Dict) -> Dict:
+        """V1->V2 报告请求转换"""
+        return {
+            "flight_id": params["id"],
+            "metrics": params["metrics"],
+            "start_time": params["start_time"],
+            "end_time": params["end_time"]
+        }
+    @staticmethod
+    def convert_generate_report_response(response: Dict) -> Dict:
         """V2->V1 报告响应转换"""
-        v2_data = response.get("data", {})
-        return {
-            "calculation_results": v2_data.get("calculation_results", {}),
-            "metrics": [{
-                "id": m["id"],
-                "name": m["name"]
-            } for m in v2_data.get("metrics", [])]
-        }
+        return response
 
     @staticmethod
-    def convert_metric_response(response: Dict) -> Dict:
-        """V2->V1 指标列表响应转换"""
-        v2_data = response.get("data", {})
+    def convert_modify_experiment_status_request(params: Dict) -> Dict:
+        """V1->V2 修改实验状态请求转换"""
         return {
-            "metrics": [{
-                "id": m["id"],
-                "name": m["name"],
-                "is_required": 0 if m.get("is_support_major", False) else 1,
-                "metric_type": m.get("type", "normal"),
-                "description": m.get("description", "")
-            } for m in v2_data.get("metrics", [])],
-            "page_info": {
-                "current_page": v2_data.get("page", {}).get("current_page", 1),
-                "total_pages": v2_data.get("page", {}).get("total_page", 1),
-                "total_items": v2_data.get("page", {}).get("total_items", 0)
-            }
+            "flight_id": params["id"],
+            "status": params["status"]
         }
-
     @staticmethod
-    def convert_group_response(response: Dict) -> Dict:
-        """V2->V1 互斥组列表响应转换"""
-        v2_data = response.get("data", [])
-        return {
-            "groups": [{
-                "id": g["id"],
-                "name": g["name"],
-                "available_traffic": g.get("available_traffic", 0),
-                "layer_type": "client" if g.get("type") == "client" else "server",
-                "description": g.get("description", "")
-            } for g in v2_data],
-            "page_info": {
-                "current_page": 1,  # V2分页参数需根据实际返回补充
-                "total_pages": 1,
-                "total_items": len(v2_data)
-            }
-        }
+    def convert_modify_experiment_status_response(response: Dict) -> Dict:
+        """V2->V1 修改实验状态响应转换"""
+        return response
+    @staticmethod
+    def convert_list_available_metrics_request(params: Dict) -> Dict:
+        """V1->V2 查询可用指标请求转换"""
+        return params
+    @staticmethod
+    def convert_list_available_metrics_response(response: Dict) -> Dict:
+        """V2->V1 查询可用指标响应转换"""
+        return response
+    def convert_list_mutex_groups_request(params: Dict) -> Dict:
+        """V1->V2 查询互斥组请求转换"""
+        return params
+    def convert_list_mutex_groups_response(response: Dict) -> Dict:
+        """V2->V1 查询互斥组响应转换"""
+        return response
+
 
 class V2Adapter(IAdapter):
     """V2透传适配器"""

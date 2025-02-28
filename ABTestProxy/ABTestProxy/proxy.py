@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:22:35
-LastEditTime: 2025-02-26 16:32:30
+LastEditTime: 2025-02-28 16:48:24
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/proxy.py
@@ -23,46 +23,31 @@ class ABTestProxy:
         self.adapter = adapter
 
     def create_experiment(self, params: Dict) -> Dict:
-        converted_params = self.adapter.convert_create_request(params)
+        converted_params = self.adapter.convert_create_experiment_request(params)
         raw_response = self.client.create_experiment(converted_params)
-        return self.adapter.convert_create_response(raw_response)
+        return self.adapter.convert_create_experiment_response(raw_response)
 
     def get_experiment_details(self, params: Dict) -> Dict:
-        exp_id = params["experiment_id"]
-        raw_response = self.client.get_experiment_details(exp_id)
-        return self.adapter.convert_detail_response(raw_response)
+        converted_params = self.adapter.convert_get_experiment_details_request(params)
+        raw_response = self.client.get_experiment_details(converted_params)
+        return self.adapter.convert_get_experiment_details_response(raw_response)
 
     def generate_report(self, params: Dict) -> Dict:
-        converted_params = {
-            "app_id": params["app_id"],
-            "experiment_id": params["experiment_id"],
-            "report_type": params["report_type"],
-            "start_ts": params["start_ts"],
-            "end_ts": params["end_ts"]
-        }
+        converted_params = self.adapter.convert_generate_report_request(params)
         raw_response = self.client.generate_report(converted_params)
-        return self.adapter.convert_report_response(raw_response)
+        return self.adapter.convert_generate_report_response(raw_response)
 
     def modify_experiment_status(self, params: Dict) -> Dict:
-        return self.client.modify_experiment_status(
-            params["experiment_id"],
-            params["action"]
-        )
+        converted_params = self.adapter.convert_modify_experiment_status_request(params)
+        raw_response = self.client.modify_experiment_status(converted_params)
+        return self.adapter.convert_modify_experiment_status_response(raw_response)
 
     def list_available_metrics(self, params: Dict) -> Dict:
-        raw_response = self.client.list_available_metrics(params)
-        return {
-            "metrics": [{
-                "id": m["id"],
-                "name": m["name"]
-            } for m in raw_response.get("data", {}).get("metrics", [])]
-        }
+        converted_params = self.adapter.convert_list_available_metrics_request(params)
+        raw_response = self.client.list_available_metrics(converted_params)
+        return self.adapter.convert_list_available_metrics_response(raw_response)
 
     def list_mutex_groups(self, params: Dict) -> Dict:
-        raw_response = self.client.list_mutex_groups(params)
-        return {
-            "groups": [{
-                "id": g["id"],
-                "name": g["name"]
-            } for g in raw_response.get("data", [])]
-        }
+        converted_params = self.adapter.convert_list_mutex_groups_request(params)
+        raw_response = self.client.list_mutex_groups(converted_params)
+        return self.adapter.convert_list_mutex_groups_response(raw_response)

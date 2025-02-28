@@ -1,0 +1,88 @@
+{
+  "code":200,
+  "data": {
+    "id": 3799,
+    "name": "实时指标报告测试",
+    "start_ts": "2020-07-08 11:39:02",
+    "end_ts": "2021-07-08 11:39:02",
+    "owner": "203870",
+    "description": "",
+    "status": 1,
+    "type": "client",
+    "mode": 1,
+    "layer": {
+      "name": "互斥组1",
+      "status": 1,
+       "description": "LS的测试场景五实验时创建时默认层",
+       "type": "NULL"
+    },
+    "version_resource": 1.0,
+    "versions": [
+      {
+        "id": 8572,
+        "name": "对照版本",
+        "type": 0,
+        "config": {
+          "hello12341": false
+        },
+        "description": "",
+        "weight": 30
+      },
+      ...
+    ],
+    "metrics": [
+      {
+        "id": 10065,
+        "name": "测试指标",
+        "metric_description": "测试指标描述",
+        "type": "major",
+        "support_conf": true,
+        "offline": false,
+        "dsl": {
+          "queries": [
+            {
+              "show_label": "A",
+              "event_type": "origin",
+              "show_name": "活跃均次（pv/au）",
+              "event_name": "predefine_pageview",
+              "filters": [
+                {
+                  "property_operation": "!=",
+                  "property_type": "event_param",
+                  "property_name": "title",
+                  "property_values": [
+                    "这是一个title"
+                  ]
+                }
+              ]
+            },
+            ...
+          ],
+          "event_relation": "A*1"
+        },
+        "composed": false
+      }
+    ],
+    "features": {
+      "id": -1,
+      "name": "",
+      "key": ""
+    },
+    "filter": "",
+    "whitelist": [
+      {
+        "对照版本": [
+          {
+            "ssids": ["bbc33321-4352-4b95-91d1-lishanlishanlishan"],
+            "id": 81,
+            "is_deleted": false,
+            "name": "李珊",
+            "description": "",
+            "tags": []
+          }
+        ]
+      }
+    ]
+  },
+  "message": "success"
+}

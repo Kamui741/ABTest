@@ -50,13 +50,13 @@ class IApiClient(ABC):
 class IAdapter(ABC):
     @staticmethod
     @abstractmethod
-    def convert_create_request(params: Dict) -> Dict:
+    def convert_create_experiment_request(params: Dict) -> Dict:
         """转换创建实验请求参数"""
         pass
 
     @staticmethod
     @abstractmethod
-    def convert_detail_response(response: Dict) -> Dict:
+    def convert_get_experiment_details_response(response: Dict) -> Dict:
         """转换实验详情响应格式"""
         pass
 
