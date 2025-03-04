@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-02-28 17:12:54
+LastEditTime: 2025-03-04 16:46:07
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
@@ -15,12 +15,8 @@ class V1Adapter(IAdapter):
     @staticmethod
     def convert_create_experiment_request(params: Dict) -> Dict:
         """V1->V2 创建实验参数转换"""
-        return {
-            "flight_name" : params["name"],
-            "duration":params["duration"],
-            "hash_strategy":"ssid",
-            "app_id":params["app_id"],
-        }
+        params[hash_strategy] = "ssid"
+        return params
 
     @staticmethod
     def convert_create_experiment_response(response: Dict) -> Dict:
@@ -30,14 +26,11 @@ class V1Adapter(IAdapter):
     @staticmethod
     def convert_get_experiment_details_request(params: Dict) -> Dict:
         """V1->V2 查询实验详情参数转换"""
-        return {
-            "flight_id": params["experiment_id"],
-            "is_duplicate": False
-        }
+        params["is_duplicate"] = False
+        return params
 
     @staticmethod
     def convert_get_experiment_details_response(response: Dict) -> Dict:
-
         return {
             "code":200,
             "data": {
@@ -128,37 +121,86 @@ class V1Adapter(IAdapter):
         }
 
 
-
-    @staticmethod
-    def _convert_status(v2_status: str) -> int:
-        """V2状态码转V1状态码"""
-        status_map = {
-            "RUNNING": 1,
-            "STOPPED": 0,
-            "DRAFT": 4
-        }
-        return status_map.get(v2_status, -1)
-
     @staticmethod
     def convert_generate_report_request(params: Dict) -> Dict:
         """V1->V2 报告请求转换"""
-        return {
-            "flight_id": params["id"],
-            "metrics": params["metrics"],
-            "start_time": params["start_time"],
-            "end_time": params["end_time"]
-        }
+        params["trace_data"] = params.get("trace_data", "")
+        return params
     @staticmethod
     def convert_generate_report_response(response: Dict) -> Dict:
         """V2->V1 报告响应转换"""
-        return response
+        return {
+        "code": 200,
+        "data": {
+            "report_type": "day", # 报告类型,day:天 hour:小时 five_minute:5分钟
+            "versions": [
+            {
+                "id": 8572, # 版本ID
+                "name": "对照版本", # 版本名称
+                "config": {
+                "hello12341": False
+                },
+                "type": 0, # 版本类型,0:对照版本 1:实验版本
+                "weight": 0  # 版本权重
+            },
+            ],
+            "metrics": [
+            {
+                "id": 10065,
+                "name": "测试指标",
+                "metric_description": "测试指标描述",
+                "type": "major", # 指标类型,major:核心 normal:普通
+                "support_conf": true,
+                "offline": False,
+                "composed": False
+            },
+            ...
+            ],
+            "start_ts": 1594179542, # 实验开始时间
+            "end_ts": 1597247999, # 实验结束时间
+            "user_data": {
+            "8572": 415248, # 实验总进组人数
+            "8573": 415261
+            },
+            "calculation_results": {
+            "10013": { # 指标ID
+                "8572": { # 实验版本ID,以下类似数字代表该实验相对于另一实验计算得出的值
+                "m": 1.367, #
+                "p": {
+                    "8573": -1 # -1为不存在,小于0.05则置信
+                },
+                "change": 0.09640731971910832, # 变化值
+                "change_rate": {
+                    "8573": -0.00053 # 变化率
+                },
+                "conf_interval": {
+                    "8573": [0,0] # 置信区间
+                },
+                "half_interval": {
+                    "8573": 0 # 置信区间中点
+                },
+                "confidence": {
+                    "8573": 3 # 置信情况,1:正向 2:负向 3:不置信 4:新开实验
+                            # 5:数据待更新 6:置信度无法计算 7:没有用户进组 8:已暂停
+                },
+                "mde": 0.012623757553642818 # 最小观测差值MDE(minimum detectable effect)
+                },
+                ...
+            },
+            ...
+            }
+        },
+        "message": "success"
+        }
+
+
 
     @staticmethod
     def convert_modify_experiment_status_request(params: Dict) -> Dict:
         """V1->V2 修改实验状态请求转换"""
         return {
-            "flight_id": params["id"],
-            "status": params["status"]
+            "flight_id": params["experiment_id"],
+            "status": params["action"]
         }
     @staticmethod
     def convert_modify_experiment_status_response(response: Dict) -> Dict:
@@ -174,6 +216,7 @@ class V1Adapter(IAdapter):
         return response
     def convert_list_mutex_groups_request(params: Dict) -> Dict:
         """V1->V2 查询互斥组请求转换"""
+        params["need_default"] = False
         return params
     def convert_list_mutex_groups_response(response: Dict) -> Dict:
         """V2->V1 查询互斥组响应转换"""

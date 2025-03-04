@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:34:42
-LastEditTime: 2025-02-28 16:37:17
+LastEditTime: 2025-03-04 14:38:04
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/ABTestProxy/api/core.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/core.py
 '''
 
 # # ================== 接口实现模块 ==================
@@ -14,7 +14,7 @@ import uuid
 import requests
 import logging
 from typing import Optional, Dict, Any
-from api.helpers import post_data, put_data, fetch_data
+from helpers import post_data, put_data, fetch_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

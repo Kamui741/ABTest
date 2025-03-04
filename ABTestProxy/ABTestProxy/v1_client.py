@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 08:51:59
-LastEditTime: 2025-02-28 16:55:56
+LastEditTime: 2025-03-04 16:39:15
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/ABTestProxy/clients/v1_client.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/v1_client.py
 '''
 # ---------------------- clients/v1_client.py ----------------------
 from typing import Dict, Any
@@ -13,7 +13,7 @@ import uuid
 import requests
 import logging
 from typing import Optional, Dict, Any
-from api.helpers import post_data, put_data, fetch_data
+from helpers import post_data, put_data, fetch_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class V1Client(IApiClient):
     def get_experiment_details(self, params: Dict) -> Dict:
         """获取实验详情"""
         flight_id=params["flight_id"]
-        is_duplicate=False
+        is_duplicate=params["is_duplicate"]
         url = f"https://28.4.136.142/datatester/api/v2/flight/view"
         params = {
             "flight_id": flight_id,
@@ -109,28 +109,32 @@ class V1Client(IApiClient):
 
     def generate_report(self, params: Dict) -> Dict:
         """生成实验报告"""
-        return get_experiment_report(
-            app_id=params['app_id'],
-            flight_id=params['flight_id'],
-            report_type=params['report_type'],
-            start_ts=params['start_ts'],
-            end_ts=params['end_ts'],
-            trace_data=params.get('trace_data', '')
-        )
+
+        app_id=params['app_id'],
+        flight_id=params['flight_id'],
+        report_type=params['report_type'],
+        start_ts=params['start_ts'],
+        end_ts=params['end_ts'],
+        trace_data=params['trace_data']
+
         url = f"https://28.4.136.142/datatester/api/v2/flight/view"
-        params = {"flight_id": flight_id, "is_duplicate": str(is_duplicate).lower()}
+        params = {
+            "app_id": app_id,
+            "flight_id": flight_id,
+            "report_type": report_type,
+            "start_ts": start_ts,
+            "end_ts": end_ts,
+            "trace_data": trace_data
+            }
         return fetch_data(url, params=params)
 
     def modify_experiment_status(self, params: Dict) -> Dict:
         """修改实验状态"""
-        return update_flight_status(
-            flight_id=exp_id,
-            action=action
-        )
 
+        flight_id=params['flight_id'],
+        action=params['action']
         if action not in ["launch", "stop"]:
-        logger.error(" Invalid action. Use 'launch' or 'stop'.")
-        return None
+            logger.error(" Invalid action. Use 'launch' or 'stop'.")
 
         url = f"https://28.4.136.142/datatester/api/v2/flight/{action}"
         payload = {"flight_id": flight_id}
@@ -138,14 +142,14 @@ class V1Client(IApiClient):
 
     def list_available_metrics(self, params: Dict) -> Dict:
         """获取指标列表"""
-        return get_metric_list(
-            app_id=params['app_id'],
-            keyword=params.get('keyword', ''),
-            status=params.get('status', 1),
-            is_required=params.get('is_required', -1),
-            need_page=params.get('need_page', 1),
-            page_size=params.get('page_size', 10)
-        )
+
+        app_id=params['app_id'],
+        keyword=params.get('keyword', ''),
+        status=params.get('status', 1),
+        is_required=params.get('is_required', -1),
+        need_page=params.get('need_page', 1),
+        page_size=params.get('page_size', 10)
+
         url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/metric/list"
         params = {
             "keyword": keyword,
@@ -158,15 +162,15 @@ class V1Client(IApiClient):
 
     def list_mutex_groups(self, params: Dict) -> Dict:
         """获取互斥组列表"""
-        return get_mutex_group_list(
-            app_id=params['app_id'],
-            keyword=params.get('keyword', ''),
-            status=params.get('status', 1),
-            need_page=params.get('need_page', 1),
-            page_size=params.get('page_size', 10),
-            page=params.get('page', 1),
-            need_default=params.get('need_default', False)
-        )
+
+        app_id=params['app_id'],
+        keyword=params.get('keyword', ''),
+        status=params.get('status', 1),
+        need_page=params.get('need_page', 1),
+        page_size=params.get('page_size', 10),
+        page=params.get('page', 1),
+        need_default=params.get('need_default', False)
+
         url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/layer/list"
         params = {
             "keyword": keyword,

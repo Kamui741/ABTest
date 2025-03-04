@@ -9,7 +9,8 @@ FilePath: /code/ABTest/ABTestProxy/ABTestProxy/factories.py
 # ---------------------- factories.py ----------------------
 from interfaces import IAuthProvider, IApiClient, IAdapter
 from auth import V1SessionAuth, V2AKSKAuth
-from clients import V1Client, V2Client
+from v1_client import V1Client
+from v2_client import V2Client
 from adapters import V1Adapter, V2Adapter
 from config import config
 

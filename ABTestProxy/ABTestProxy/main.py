@@ -1,4 +1,5 @@
-from clients import V1Client, V2Client
+from v1_client import V1Client
+from v2_client import V2Client
 from adapters import V1Adapter, V2Adapter
 from auth import V1SessionAuth, V2AKSKAuth
 from config import config
@@ -61,41 +62,50 @@ def main_v1():
         detail_res = proxy.get_experiment_details(detail_params)
         print(f"[V1] 实验详情：{detail_res}")
 
-    # 3. 修改实验状态
-    status_params = {
-        "experiment_id": exp_id,
-        "action": "stop"
-    }
-    status_res = proxy.modify_experiment_status(status_params)
-    print(f"[V1] 修改状态结果：{status_res}")
-
-    # 4. 获取指标列表
-    metric_params = {
-        "app_id": 123,
-        "keyword": "关键指标",
-        "page_size": 5
-    }
-    metrics = proxy.list_available_metrics(metric_params)
-    print(f"[V1] 指标列表：{metrics}")
-
-    # 5. 获取互斥组列表
-    group_params = {
-        "app_id": 123,
-        "keyword": "核心层"
-    }
-    groups = proxy.list_mutex_groups(group_params)
-    print(f"[V1] 互斥组列表：{groups}")
-
-    # 6. 生成报告
+    # 3. 生成报告
     report_params = {
         "app_id": 123,
         "experiment_id": exp_id,
         "report_type": "daily",
         "start_ts": 1625097600,  # 2021-07-01
-        "end_ts": 1627689600     # 2021-07-31
+        "end_ts": 1627689600,     # 2021-07-31
+        "fliters": []
     }
     report = proxy.generate_report(report_params)
     print(f"[V1] 实验报告：{report}")
+
+    # 4. 修改实验状态
+    status_params = {
+        "experiment_id": exp_id,
+        "app_id": app_id,
+        "action": "launch"
+    }
+    status_res = proxy.modify_experiment_status(status_params)
+    print(f"[V1] 修改状态结果：{status_res}")
+
+    # 5. 获取指标列表
+    metric_params = {
+        "app_id": 123,
+        "keyword": "关键指标",
+        "need_page": 1,
+        "page_size": 5,
+        "page": 1
+    }
+    metrics = proxy.list_available_metrics(metric_params)
+    print(f"[V1] 指标列表：{metrics}")
+
+    # 6. 获取互斥组列表
+    group_params = {
+        "app_id": 123,
+        "keyword": "互斥组",
+        "need_page": 1,
+        "page_size": 5,
+        "page": 1
+    }
+    groups = proxy.list_mutex_groups(group_params)
+    print(f"[V1] 互斥组列表：{groups}")
+
+
 
 def main_v2():
     """V2版本调用示例"""
@@ -140,7 +150,8 @@ def main_v2():
 
     # 2. 获取实验详情
     if exp_id:
-        detail_params = {"experiment_id": exp_id}
+        detail_params = {
+            "experiment_id": exp_id,}
         detail_res = proxy.get_experiment_details(detail_params)
         print(f"[V2] 实验详情：{detail_res}")
 
