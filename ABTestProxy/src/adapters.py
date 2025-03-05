@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-03-05 16:46:05
+LastEditTime: 2025-03-06 06:16:31
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py

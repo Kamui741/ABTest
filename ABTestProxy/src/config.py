@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-25 19:36:47
-LastEditTime: 2025-03-05 16:49:35
+LastEditTime: 2025-03-06 06:02:04
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/config.py
@@ -30,8 +30,7 @@ class ABTestConfig:
         cls.V2_ACCESS_KEY = os.getenv("V2_ACCESS_KEY")
         cls.V2_SECRET_KEY = os.getenv("V2_SECRET_KEY")
 
-        # 版本配置
-        cls.RUNTIME_MODE = os.getenv('RUNTIME_MODE', 'V1')  # V1/V2
+
         cls.BASE_URLS = {
             'V1': os.getenv('V1_BASE_URL', 'https://28.4.136.142'),
             'V2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
@@ -63,12 +62,9 @@ class ABTestConfig:
             }
         }
 
-    @property
-    def current_base_url(self):
-        return self.BASE_URLS[self.RUNTIME_MODE]
 
-    def get_endpoint(self, name: str, **params) -> str:
-        template = self.API_ENDPOINTS[name][self.RUNTIME_MODE]
-        return template.format(**params)
+    def get_endpoint(self, version: str, name: str, **params) -> str:
+        """动态获取端点路径"""
+        return self.API_ENDPOINTS[name][version].format(**params)
 
 config = ABTestConfig()

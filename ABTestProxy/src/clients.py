@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 14:53:48
-LastEditTime: 2025-03-05 15:03:19
+LastEditTime: 2025-03-06 06:17:33
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/clients.py
@@ -18,17 +18,19 @@ logger = logging.getLogger(__name__)
 
 class BaseClient:
     """客户端基类"""
-    def __init__(self, base_url):
+    def __init__(self, base_url: str, auth_type: str):
         self.base_url = base_url
+        self.auth_type = auth_type
 
 
 
 class V1Client(BaseClient):
     """V1客户端完整实现"""
     def __init__(self):
-        super().__init__(config.BASE_URLS['V1'])
-        from auth import V1AuthProvider
-        self.auth = V1AuthProvider()
+        super().__init__(
+            base_url=config.BASE_URLS['V1'],
+            auth_type='v1'
+        )
     def create_experiment(self, params: Dict) -> Dict:
         """创建实验（参数需适配V1格式）"""
         flight_name=params['flight_name']
@@ -117,11 +119,11 @@ class V1Client(BaseClient):
     def generate_report(self, params: Dict) -> Dict:
         """生成实验报告"""
 
-        app_id=params['app_id'],
-        flight_id=params['flight_id'],
-        report_type=params['report_type'],
-        start_ts=params['start_ts'],
-        end_ts=params['end_ts'],
+        app_id=params['app_id']
+        flight_id=params['flight_id']
+        report_type=params['report_type']
+        start_ts=params['start_ts']
+        end_ts=params['end_ts']
         trace_data=params['trace_data']
 
         url = f"{self.base_url}/datatester/api/v2/flight/view"
@@ -192,9 +194,10 @@ class V1Client(BaseClient):
 class V2Client(BaseClient):
     """适配config.py的V2客户端实现"""
     def __init__(self):
-        super().__init__(config.BASE_URLS['V2'])
-        from auth import V2AuthProvider
-        self.auth = V2AuthProvider()
+        super().__init__(
+            base_url=config.BASE_URLS['V2'],
+            auth_type='v2'
+        )
     def create_experiment(self, params: Dict) -> Dict:
         required_fields = ['name', 'mode', 'app_id', 'duration',
                          'major_metric', 'metrics', 'versions']
