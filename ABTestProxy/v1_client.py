@@ -1,26 +1,19 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 08:51:59
-LastEditTime: 2025-03-04 16:39:15
+LastEditTime: 2025-03-05 09:08:43
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/v1_client.py
 '''
 # ---------------------- clients/v1_client.py ----------------------
-from typing import Dict, Any
-from interfaces import IApiClient
-import uuid
-import requests
-import logging
-from typing import Optional, Dict, Any
-from helpers import post_data, put_data, fetch_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class V1Client(IApiClient):
     """V1客户端完整实现"""
-
+    base_url = config.BASE_URLS['V1']
     def create_experiment(self, params: Dict) -> Dict:
         """创建实验（参数需适配V1格式）"""
         flight_name=params['flight_name']
@@ -31,7 +24,7 @@ class V1Client(IApiClient):
         创建实验的完整流程,包含四次连续的 POST 请求。
         """
         # Step 1: 初始化实验草稿
-        step1_url = "http://28.4.136.142/api/step1"
+        step1_url = f"{self.base_url}/api/step1"
         step1_payload = {
             "flight_name": flight_name,
             "duration": duration,
@@ -49,7 +42,7 @@ class V1Client(IApiClient):
         draft_id = step1_response.get("data",{}).get("draft_id")
 
         # Step 2: 配置实验指标
-        step2_url = "http://28.4.136.142/api/step2"
+        step2_url = f"{self.base_url}/api/step2"
         step2_payload = {
             "major_metric": "1545",
             "metrics": "1545",
@@ -64,7 +57,7 @@ class V1Client(IApiClient):
         # Step 3: 配置实验版本
         version_control_id = str(uuid.uuid4())
         version_experiment_id = str(uuid.uuid4())
-        step3_url = "http://28.4.136.142/api/step3"
+        step3_url = f"{self.base_url}/api/step3"
         step3_payload = {
             "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3"}}}}""",
             "app": app_id,
@@ -76,7 +69,7 @@ class V1Client(IApiClient):
             return None
 
         # Step 4: 提交实验草稿
-        step4_url = "http://28.4.136.142/api/step4"
+        step4_url = f"{self.base_url}/api/step4"
         step4_payload = {
             "skip_verification": False,
             "is_start": True,
@@ -100,7 +93,7 @@ class V1Client(IApiClient):
         """获取实验详情"""
         flight_id=params["flight_id"]
         is_duplicate=params["is_duplicate"]
-        url = f"https://28.4.136.142/datatester/api/v2/flight/view"
+        url = f"{self.base_url}/datatester/api/v2/flight/view"
         params = {
             "flight_id": flight_id,
             "is_duplicate": str(is_duplicate).lower()
@@ -117,7 +110,7 @@ class V1Client(IApiClient):
         end_ts=params['end_ts'],
         trace_data=params['trace_data']
 
-        url = f"https://28.4.136.142/datatester/api/v2/flight/view"
+        url = f"{self.base_url}/datatester/api/v2/flight/view"
         params = {
             "app_id": app_id,
             "flight_id": flight_id,
@@ -136,7 +129,7 @@ class V1Client(IApiClient):
         if action not in ["launch", "stop"]:
             logger.error(" Invalid action. Use 'launch' or 'stop'.")
 
-        url = f"https://28.4.136.142/datatester/api/v2/flight/{action}"
+        url = f"{self.base_url}/datatester/api/v2/flight/{action}"
         payload = {"flight_id": flight_id}
         return put_data(url, json_data=payload)
 
@@ -150,7 +143,7 @@ class V1Client(IApiClient):
         need_page=params.get('need_page', 1),
         page_size=params.get('page_size', 10)
 
-        url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/metric/list"
+        url = f"{self.base_url}/datatester/api/v2/app/{app_id}/metric/list"
         params = {
             "keyword": keyword,
             "status": status,
@@ -171,7 +164,7 @@ class V1Client(IApiClient):
         page=params.get('page', 1),
         need_default=params.get('need_default', False)
 
-        url = f"https://28.4.136.142/datatester/api/v2/app/{app_id}/layer/list"
+        url = f"{self.base_url}/datatester/api/v2/app/{app_id}/layer/list"
         params = {
             "keyword": keyword,
             "status": status,

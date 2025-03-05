@@ -1,7 +1,7 @@
 from v1_client import V1Client
 from v2_client import V2Client
 from adapters import V1Adapter, V2Adapter
-from auth import V1SessionAuth, V2AKSKAuth
+from auth import V1AuthProvider, V2AuthProvider
 from config import config
 from proxy import ABTestProxy
 import os
@@ -17,7 +17,7 @@ def main_v1():
 
     # 初始化组件
     config.RUNTIME_MODE = 'V1'
-    auth = V1SessionAuth()
+    auth = V1AuthProvider()
     client = V1Client()
     adapter = V1Adapter()
     proxy = ABTestProxy(client, adapter)
@@ -118,7 +118,7 @@ def main_v2():
 
     # 初始化组件
     config.RUNTIME_MODE = 'V2'
-    auth = V2AKSKAuth()
+    auth = V2AuthProvider()
     client = V2Client(auth)
     adapter = V2Adapter()
     proxy = ABTestProxy(client, adapter)

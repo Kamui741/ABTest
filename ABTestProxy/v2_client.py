@@ -1,7 +1,7 @@
 # clients/v2_client.py 修改URL生成逻辑
 from typing import Dict, Any, Optional
 from interfaces import IApiClient
-from helpers import post_data, fetch_data, put_data
+from ABTestProxy.ABTestProxy.helpers import post_data, fetch_data, put_data
 from config import config
 # TODO: 分离功能函数
 # TODO: web接口化改造

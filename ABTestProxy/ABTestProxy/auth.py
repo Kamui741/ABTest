@@ -8,7 +8,7 @@ from interfaces import IAuthProvider
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class V1SessionAuth(IAuthProvider):
+class V1AuthProvider:
     """V1会话认证"""
     def __init__(self):
         self.login_url = config.V1_LOGIN_URL
@@ -97,17 +97,22 @@ class V1SessionAuth(IAuthProvider):
             logger.error(f"登录请求失败: {str(e)}")
             return None
 
-class V2AKSKAuth(IAuthProvider):
+class V2AuthProvider:
     """V2 AK/SK认证"""
-    def get_auth_headers(self) -> Dict[str, str]:
+    def __init__(self):
+        from config import config
+        self.ak = config.V2_AK
+        self.sk = config.V2_SK
+
+    def get_headers(self):
         timestamp = str(int(time.time() * 1000))
         signature = hmac.new(
-            config.V2_SECRET_KEY.encode(),
-            f"{timestamp}\n{config.V2_ACCESS_KEY}".encode(),
+            self.sk.encode(),
+            f"{timestamp}\n{self.ak}".encode(),
             hashlib.sha256
         ).hexdigest()
         return {
-            "X-Access-Key": config.V2_ACCESS_KEY,
+            "X-Access-Key": self.ak,
             "X-Timestamp": timestamp,
             "X-Signature": signature
         }

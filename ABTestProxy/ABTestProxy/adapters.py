@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-03-04 16:46:07
+LastEditTime: 2025-03-05 16:46:05
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
@@ -15,7 +15,7 @@ class V1Adapter(IAdapter):
     @staticmethod
     def convert_create_experiment_request(params: Dict) -> Dict:
         """V1->V2 创建实验参数转换"""
-        params[hash_strategy] = "ssid"
+        params["hash_strategy"] = "ssid"
         return params
 
     @staticmethod

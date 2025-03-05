@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-25 19:36:47
-LastEditTime: 2025-02-26 17:30:00
+LastEditTime: 2025-03-05 16:49:35
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/config.py
@@ -33,7 +33,7 @@ class ABTestConfig:
         # 版本配置
         cls.RUNTIME_MODE = os.getenv('RUNTIME_MODE', 'V1')  # V1/V2
         cls.BASE_URLS = {
-            'V1': os.getenv('V1_BASE_URL', 'https://default-v1.example.com'),
+            'V1': os.getenv('V1_BASE_URL', 'https://28.4.136.142'),
             'V2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
         }
         cls.API_ENDPOINTS = {

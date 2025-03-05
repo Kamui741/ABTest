@@ -249,7 +249,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     创建实验的完整流程,包含四次连续的 POST 请求。
     """
     # Step 1: 初始化实验草稿
-    step1_url = "http://28.4.136.142/api/step1"
+    step1_url = f"{base_url}/api/step1"
     step1_payload = {
         "flight_name": flight_name,
         "duration": duration,
@@ -267,7 +267,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     draft_id = step1_response.get("data",{}).get("draft_id")
 
     # Step 2: 配置实验指标
-    step2_url = "http://28.4.136.142/api/step2"
+    step2_url = f"{base_url}/api/step2"
     step2_payload = {
         "major_metric": "1545",
         "metrics": "1545",
@@ -282,7 +282,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
     # Step 3: 配置实验版本
     version_control_id = str(uuid.uuid4())
     version_experiment_id = str(uuid.uuid4())
-    step3_url = "http://28.4.136.142/api/step3"
+    step3_url = f"{base_url}/api/step3"
     step3_payload = {
         "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3}}}}""",
         "app": app_id,
@@ -294,7 +294,7 @@ def create_experiment(flight_name: str, duration: int, hash_strategy: str, app_i
         return None
 
     # Step 4: 提交实验草稿
-    step4_url = "http://28.4.136.142/api/step4"
+    step4_url = f"{base_url}/api/step4"
     step4_payload = {
         "skip_verification": False,
         "is_start": True,

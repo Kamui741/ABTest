@@ -13,7 +13,7 @@ import hmac
 import hashlib
 import time
 from typing import Optional, Dict, Any, Union
-from auth import SessionManager, V2AKSKAuth
+from auth import SessionManager, V2AuthProvider
 from config import config
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +41,7 @@ def send_request(
 
     # V2认证流程
     elif auth_type == 'v2':
-        headers.update(V2AKSKAuth.get_auth_headers())
+        headers.update(V2AuthProvider.get_auth_headers())
 
     # 智能设置Content-Type
     if json_data and "Content-Type" not in headers:
