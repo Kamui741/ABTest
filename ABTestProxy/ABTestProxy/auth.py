@@ -22,12 +22,12 @@ class V1AuthProvider:
         self._sessionid: Optional[str] = None
 
     def get_auth_headers(self) -> Dict[str, str]:
-        """实现IAuthProvider接口"""
+        """实现AuthProvider接口"""
         sessionid = self.get_valid_session()
         return {"Cookie": f"sessionid={sessionid}"} if sessionid else {}
 
     def get_valid_session(self) -> Optional[str]:
-        """整合原有SessionManager的核心逻辑"""
+        """获取 session"""
         sessionid = self._load_sessionid()
         if sessionid and self._validate_session(sessionid):
             return sessionid
@@ -104,11 +104,11 @@ class V2AuthProvider:
     """V2 AK/SK认证"""
     def __init__(self):
         from config import config
-        self.ak = config.V2_AK
-        self.sk = config.V2_SK
+        self.ak = config.V2_ACCESS_KEY
+        self.sk = config.V2_SECRET_KEY
 
     def get_headers(self):
-        timestamp = str(int(time.time() * 1000))
+        timestamp = str(int(time.time()))
         signature = hmac.new(
             self.sk.encode(),
             f"{timestamp}\n{self.ak}".encode(),

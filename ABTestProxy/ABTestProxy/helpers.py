@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:35:07
-LastEditTime: 2025-03-06 05:26:54
+LastEditTime: 2025-03-07 06:31:03
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/helpers.py
@@ -27,8 +27,9 @@ def get_auth_headers(auth_type: str) -> Dict:
         return {"Cookie": f"sessionid={sessionid}"}
 
     if auth_type == 'v2':
-        return V2AuthProvider.generate_headers()
-
+        if auth_type == 'v2':
+            provider = V2AuthProvider()
+            return provider.get_headers()
     return {}
 
 def send_request(

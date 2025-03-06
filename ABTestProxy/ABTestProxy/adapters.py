@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-03-06 17:19:24
+LastEditTime: 2025-03-07 06:45:11
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
@@ -150,7 +150,7 @@ class V1Adapter():
                 "name": "测试指标",
                 "metric_description": "测试指标描述",
                 "type": "major", # 指标类型,major:核心 normal:普通
-                "support_conf": true,
+                "support_conf": True,
                 "offline": False,
                 "composed": False
             },

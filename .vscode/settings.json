@@ -1,5 +1,5 @@
 {
-    "Codegeex.Chat.fontSize": 18,
+    "Codegeex.Chat.fontSize": 15,
     "python.analysis.extraPaths": [
         "./ABTestProxy/test/test_"
     ]
