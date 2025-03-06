@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 14:53:48
-LastEditTime: 2025-03-06 06:17:33
+LastEditTime: 2025-03-06 10:29:22
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/ABTestProxy/clients.py
+FilePath: /ABTest/ABTestProxy/src/clients.py
 '''
 # ---------------------- clients.py ----------------------
 import logging
@@ -12,7 +12,7 @@ import uuid
 from typing import Dict , Any , Optional
 import requests
 from config import config
-from ABTestProxy.ABTestProxy.helpers import post_data , put_data , fetch_data
+from helpers import post_data , put_data , fetch_data
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +257,7 @@ class V2Client(BaseClient):
             auth_type='v2'
         )
 
-    def list_metrics(self, params: Dict) -> Dict:
+    def list_available_metrics(self, params: Dict) -> Dict:
         return fetch_data(
             url=self._build_url('list_metrics', app_id=params['app_id']),
             params={
@@ -268,7 +268,7 @@ class V2Client(BaseClient):
             auth_type='v2'
         )
 
-    def list_groups(self, params: Dict) -> Dict:
+    def list_mutex_groups(self, params: Dict) -> Dict:
         return fetch_data(
             url=self._build_url('list_groups', app_id=params['app_id']),
             params={

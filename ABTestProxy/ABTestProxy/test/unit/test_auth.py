@@ -12,7 +12,7 @@ import hashlib
 from unittest.mock import patch
 
 def test_v1_session_persistence(tmp_path):
-    from src.auth import V1AuthProvider
+    from auth import V1AuthProvider
     import os
 
     # 设置临时会话文件
@@ -26,7 +26,7 @@ def test_v1_session_persistence(tmp_path):
     assert session_file.read_text().strip() == "test_session_123"
 
 def test_v2_signature_consistency():
-    from src.auth import V2AuthProvider
+    from auth import V2AuthProvider
     import time
 
     fixed_time = 1672531200  # 2023-01-01 00:00:00

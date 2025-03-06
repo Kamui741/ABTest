@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_auth_headers(auth_type: str) -> Dict:
     """统一认证头生成"""
     if auth_type == 'v1':
-        provider = V1AuthProvider(config.LOGIN_URL, config.SESSION_FILE)
+        provider = V1AuthProvider(config.V1_LOGIN_URL, config.V1_SESSION_FILE)
         sessionid = provider.get_valid_session(config.BASE_URLS['V1'])
         return {"Cookie": f"sessionid={sessionid}"}
 

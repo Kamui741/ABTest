@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-25 19:36:47
-LastEditTime: 2025-03-06 06:02:04
+LastEditTime: 2025-03-06 10:41:59
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/ABTestProxy/config.py
+FilePath: /ABTest/ABTestProxy/src/config.py
 '''
 # ---------------------- config.py ----------------------
 import os
@@ -21,10 +21,11 @@ class ABTestConfig:
     @classmethod
     def _reload(cls):
         # 基础配置
-        cls.SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
-        cls.LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
-        cls.USERNAME = os.getenv("USERNAME")
-        cls.PASSWORD = os.getenv("PASSWORD")
+        cls.V1_SESSION_FILE = os.getenv('SESSION_FILE', 'session.txt')
+        cls.V1_LOGIN_URL = os.getenv('LOGIN_URL', 'https://28.4.136.142/api/login')
+        cls.V1_USERNAME = os.getenv("USERNAME")
+        cls.V1_PASSWORD = os.getenv("PASSWORD")
+        cls.V1_TARGET_URL = os.getenv('TARGET_URL', 'https://28.4.136.142')
 
         # V2认证配置
         cls.V2_ACCESS_KEY = os.getenv("V2_ACCESS_KEY")

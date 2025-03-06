@@ -7,7 +7,6 @@ import requests
 import logging
 from typing import Optional, Dict, Any
 from config import config
-from interfaces import IAuthProvider
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

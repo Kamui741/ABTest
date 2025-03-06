@@ -1,15 +1,15 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-03-06 06:16:31
+LastEditTime: 2025-03-06 17:19:24
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
 '''
 # ---------------------- adapters.py ----------------------
-from interfaces import IAdapter
+
 from typing import Dict
-class V1Adapter(IAdapter):
+class V1Adapter():
     """增强的V1协议适配器"""
 
     @staticmethod
@@ -61,7 +61,7 @@ class V1Adapter(IAdapter):
                     "description": "",
                     "weight": 30
                 },
-                ...
+                # ...
                 ],
                 "metrics": [
                 {
@@ -185,9 +185,9 @@ class V1Adapter(IAdapter):
                 },
                 "mde": 0.012623757553642818 # 最小观测差值MDE(minimum detectable effect)
                 },
-                ...
+                # ...
             },
-            ...
+            # ...
             }
         },
         "message": "success"
@@ -200,7 +200,7 @@ class V1Adapter(IAdapter):
         """V1->V2 修改实验状态请求转换"""
         return {
             "flight_id": params["experiment_id"],
-            "status": params["action"]
+            "action": params["action"]
         }
     @staticmethod
     def convert_modify_experiment_status_response(response: Dict) -> Dict:
@@ -223,7 +223,7 @@ class V1Adapter(IAdapter):
         return response
 
 
-class V2Adapter(IAdapter):
+class V2Adapter():
     """V2透传适配器"""
     @staticmethod
     def convert_request(params: Dict) -> Dict:
