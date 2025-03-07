@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 06:57:14
-LastEditTime: 2025-03-07 06:45:11
+LastEditTime: 2025-03-07 17:15:25
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
@@ -225,10 +225,52 @@ class V1Adapter():
 
 class V2Adapter():
     """V2透传适配器"""
+
     @staticmethod
-    def convert_request(params: Dict) -> Dict:
+    def convert_create_experiment_request(params: Dict) -> Dict:
+        """V2不需要转换，直接透传"""
         return params
 
     @staticmethod
-    def convert_response(response: Dict) -> Dict:
+    def convert_create_experiment_response(response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_get_experiment_details_request(params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_get_experiment_details_response(response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_generate_report_request(params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_generate_report_response(response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_modify_experiment_status_request(params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_modify_experiment_status_response(response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_list_available_metrics_request(params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_list_available_metrics_response(response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_list_mutex_groups_request(params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_list_mutex_groups_response(response: Dict) -> Dict:
         return response

@@ -21,6 +21,7 @@ class ABTestTester:
         """测试创建实验"""
         url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments"
         params = {
+            "version": "V1",
             "name": "端到端测试实验",
             "mode": 1,
             "endpoint_type": 1,
@@ -66,7 +67,7 @@ class ABTestTester:
 
         url = f"{self.base_url}/openapi/v1/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/details"
         try:
-            response = requests.get(url, params={"version": "V2"})
+            response = requests.get(url, params={"version": "V1"})
             response.raise_for_status()
             data = response.json()
             success = data["code"] == 200 and data["data"]["id"] == self.created_experiment_id
@@ -87,7 +88,7 @@ class ABTestTester:
             "report_type": "day",
             "start_ts": "1625097600",  # 2021-07-01
             "end_ts": "1627689600",     # 2021-07-31
-            "version": "V2"
+            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)
@@ -109,14 +110,14 @@ class ABTestTester:
         # 先停止实验
         stop_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/stop"
         try:
-            response = requests.put(stop_url, params={"version": "V2"})
+            response = requests.put(stop_url, params={"version": "V1"})
             response.raise_for_status()
             stop_data = response.json()
             stop_ok = stop_data["code"] == 200
 
             # 再启动实验
             launch_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/launch"
-            response = requests.put(launch_url, params={"version": "V2"})
+            response = requests.put(launch_url, params={"version": "V1"})
             response.raise_for_status()
             launch_data = response.json()
             launch_ok = launch_data["code"] == 200
@@ -136,7 +137,7 @@ class ABTestTester:
         params = {
             "page": 1,
             "page_size": 5,
-            "version": "V2"
+            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)
@@ -155,7 +156,7 @@ class ABTestTester:
         params = {
             "page": 1,
             "page_size": 5,
-            "version": "V2"
+            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)

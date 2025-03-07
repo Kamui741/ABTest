@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 15:19:27
-LastEditTime: 2025-03-05 17:10:55
+LastEditTime: 2025-03-07 10:08:48
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/app.py
@@ -181,6 +181,5 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
-# TODO: mock 测试
-# TODO: main 函数只需要一个版本
+
 # TODO: restful api
