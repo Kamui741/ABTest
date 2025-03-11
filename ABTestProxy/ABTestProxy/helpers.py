@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-02-13 14:35:07
-LastEditTime: 2025-03-07 06:31:03
+LastEditTime: 2025-03-10 14:50:28
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/helpers.py
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 def get_auth_headers(auth_type: str) -> Dict:
     """统一认证头生成"""
     if auth_type == 'v1':
-        provider = V1AuthProvider(config.V1_LOGIN_URL, config.V1_SESSION_FILE)
-        sessionid = provider.get_valid_session(config.BASE_URLS['V1'])
+        provider = V1AuthProvider()
+        sessionid = provider.get_valid_session()
         return {"Cookie": f"sessionid={sessionid}"}
 
     if auth_type == 'v2':

@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 15:19:27
-LastEditTime: 2025-03-07 10:08:48
+LastEditTime: 2025-03-10 17:06:29
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/app.py
@@ -18,13 +18,13 @@ app = FastAPI(title="ABTest API Service", version="2.0")
 logger = logging.getLogger(__name__)
 
 # -------------------- API Endpoints --------------------
-@app.post("/openapi/v2/apps/{app_id}/experiments",
+@app.post("/openapi/{version}/apps/{app_id}/experiments",
           summary="创建实验",
           tags=["实验管理"])
 async def create_experiment(
     request: Request,
     app_id: int = Path(..., description="应用ID"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """创建新实验（支持V1/V2双版本）"""
 
@@ -42,13 +42,13 @@ async def create_experiment(
 
 
 
-@app.get("/openapi/v1/apps/{app_id}/experiment/{experiment_id}/details",
+@app.get("/openapi/{version}/apps/{app_id}/experiment/{experiment_id}/details",
          summary="获取实验详情",
          tags=["实验管理"])
 async def get_experiment_details(
     app_id: int = Path(..., description="应用ID"),
     experiment_id: int = Path(..., description="实验ID"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """获取实验配置详情"""
 
@@ -61,7 +61,7 @@ async def get_experiment_details(
     return handle_response(result)
 
 
-@app.get("/openapi/v1/apps/{app_id}/experiment/{experiment_id}/metrics",
+@app.get("/openapi/{version}/apps/{app_id}/experiment/{experiment_id}/metrics",
          summary="生成实验报告",
          tags=["实验分析"])
 async def generate_report(
@@ -71,7 +71,7 @@ async def generate_report(
     start_ts: str = Query(..., description="开始时间戳（10位）"),
     end_ts: str = Query(..., description="结束时间戳（10位）"),
     filters: Optional[str] = Query(None, description="过滤条件"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """生成实验指标报告"""
     params = {
@@ -87,14 +87,14 @@ async def generate_report(
     return handle_response(result)
 
 
-@app.put("/openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}",
+@app.put("/openapi/{version}/apps/{app_id}/experiments/{experiment_id}/{action}",
          summary="修改实验状态",
          tags=["实验管理"])
 async def modify_experiment_status(
     app_id: int = Path(..., description="应用ID"),
     experiment_id: int = Path(..., description="实验ID"),
     action: str = Path(..., description="操作类型: launch/stop"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """启动/停止实验"""
 
@@ -108,7 +108,7 @@ async def modify_experiment_status(
     return handle_response(result)
 
 
-@app.get("/openapi/v2/apps/{app_id}/metrics",
+@app.get("/openapi/{version}/apps/{app_id}/metrics",
          summary="获取指标列表",
          tags=["资源管理"])
 async def list_metrics(
@@ -117,7 +117,7 @@ async def list_metrics(
     page: int = Query(1, ge=1, description="当前页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     need_page: int = Query(1, ge=0, le=1, description="是否分页"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """查询可用指标"""
 
@@ -133,7 +133,7 @@ async def list_metrics(
     return handle_response(result)
 
 
-@app.get("/openapi/v2/apps/{app_id}/layers",
+@app.get("/openapi/{version}/apps/{app_id}/layers",
          summary="获取互斥组列表",
          tags=["资源管理"])
 async def list_mutex_groups(
@@ -142,7 +142,7 @@ async def list_mutex_groups(
     page: int = Query(1, ge=1, description="当前页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     need_page: int = Query(1, ge=0, le=1, description="是否分页"),
-    version: str = Query("V2", description="API版本控制参数")
+    version: str = Path(..., description="API版本控制参数")
 ):
     """查询互斥组信息"""
 

@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 15:12:03
-LastEditTime: 2025-03-06 17:19:24
+LastEditTime: 2025-03-10 16:46:07
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/service.py
@@ -14,16 +14,16 @@ from typing import Dict
 class ABTestService:
     def __init__(self):
         self._version = 'V2'  # 默认版本
-        self.clients = {'V1': V1Client(), 'V2': V2Client()}
-        self.adapters = {'V1': V1Adapter(), 'V2': V2Adapter()}
+        self._clients = {'v1': V1Client(), 'v2': V2Client()}
+        self._adapters = {'v1': V1Adapter(), 'v2': V2Adapter()}
     def _setup_components(self, params: Dict):
         """统一初始化组件"""
         version = params.get('version', self._version).upper()
-        if version not in ['V1', 'V2']:
+        if version not in ['v1', 'v2']:
             raise ValueError(f"Invalid version: {version}")
-
-        self._client = self.clients[version]
-        self._adapter = self.adapters[version]
+        print(f"当前版本: {version}, 适配器类型: {type(self._adapters[version])}")  # 调试输出
+        self._client = self._clients[version]
+        self._adapter = self._adapters[version]
         return self
 
     def create_experiment(self, params: Dict) -> Dict:

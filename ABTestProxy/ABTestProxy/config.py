@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-25 19:36:47
-LastEditTime: 2025-03-06 10:41:59
+LastEditTime: 2025-03-10 16:45:14
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/src/config.py
+FilePath: /ABTest/ABTestProxy/ABTestProxy/config.py
 '''
 # ---------------------- config.py ----------------------
 import os
@@ -28,38 +28,38 @@ class ABTestConfig:
         cls.V1_TARGET_URL = os.getenv('TARGET_URL', 'https://28.4.136.142')
 
         # V2认证配置
-        cls.V2_ACCESS_KEY = os.getenv("V2_ACCESS_KEY")
-        cls.V2_SECRET_KEY = os.getenv("V2_SECRET_KEY")
+        cls.V2_ACCESS_KEY = os.getenv("2_ACCESS_KEY")
+        cls.V2_SECRET_KEY = os.getenv("2_SECRET_KEY")
 
 
         cls.BASE_URLS = {
-            'V1': os.getenv('V1_BASE_URL', 'https://28.4.136.142'),
-            'V2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
+            'v1': os.getenv('V1_BASE_URL', 'https://28.4.136.142'),
+            'v2': os.getenv('V2_BASE_URL', 'https://default-v2.example.com')
         }
         cls.API_ENDPOINTS = {
             'create_experiment': {
-                'V1': 'experiment/create',
-                'V2': 'openapi/v2/apps/{app_id}/experiments'
+                'v1': 'experiment/create',
+                'v2': 'openapi/v2/apps/{app_id}/experiments'
             },
             'get_details': {
-                'V1': 'experiment/detail',
-                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/details'
+                'v1': 'experiment/detail',
+                'v2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/details'
             },
             'generate_report': {
-                'V1': 'report/generate',
-                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/metrics'
+                'v1': 'report/generate',
+                'v2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/metrics'
             },
             'modify_status': {
-                'V1': 'experiment/status',
-                'V2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}'
+                'v1': 'experiment/status',
+                'v2': 'openapi/v2/apps/{app_id}/experiments/{experiment_id}/{action}'
             },
             'list_metrics': {
-                'V1': 'metrics',
-                'V2': 'openapi/v2/apps/{app_id}/metrics'
+                'v1': 'metrics',
+                'v2': 'openapi/v2/apps/{app_id}/metrics'
             },
             'list_groups': {
-                'V1': 'groups',
-                'V2': 'openapi/v2/apps/{app_id}/layers'
+                'v1': 'groups',
+                'v2': 'openapi/v2/apps/{app_id}/layers'
             }
         }
 

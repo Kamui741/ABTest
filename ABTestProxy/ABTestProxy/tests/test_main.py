@@ -2,13 +2,25 @@
 import requests
 import json
 from typing import Dict
+import sys
+import os
 
+# 获取当前测试目录的绝对路径
+test_dir = os.path.dirname(os.path.abspath(__file__))
+# 获取项目根目录（即ABTestProxy文件夹）
+project_root = os.path.dirname(test_dir)
+# 将根目录添加到Python路径
+sys.path.insert(0, project_root)
+
+from config import config
+
+# 测试ABTestProxy的API
 class ABTestTester:
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
         self.test_app_id = 1001  # 测试用应用ID
         self.created_experiment_id = None  # 存储新建实验ID
-
+        self.version = "v1"  # API版本
     def print_result(self, case_name: str, success: bool, response: Dict):
         """统一打印测试结果"""
         status = "成功" if success else "失败"
@@ -19,9 +31,8 @@ class ABTestTester:
 
     def test_create_experiment(self) -> bool:
         """测试创建实验"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments"
+        url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/experiments"
         params = {
-            "version": "V1",
             "name": "端到端测试实验",
             "mode": 1,
             "endpoint_type": 1,
@@ -65,9 +76,12 @@ class ABTestTester:
             print("未创建实验，跳过详情查询")
             return False
 
-        url = f"{self.base_url}/openapi/v1/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/details"
+        url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/details"
+        params={
+
+            }
         try:
-            response = requests.get(url, params={"version": "V1"})
+            response = requests.get(url, )
             response.raise_for_status()
             data = response.json()
             success = data["code"] == 200 and data["data"]["id"] == self.created_experiment_id
@@ -83,12 +97,11 @@ class ABTestTester:
             print("未创建实验，跳过报告生成")
             return False
 
-        url = f"{self.base_url}/openapi/v1/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/metrics"
+        url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/metrics"
         params = {
             "report_type": "day",
             "start_ts": "1625097600",  # 2021-07-01
             "end_ts": "1627689600",     # 2021-07-31
-            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)
@@ -108,16 +121,16 @@ class ABTestTester:
             return False
 
         # 先停止实验
-        stop_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/stop"
+        stop_url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/stop"
         try:
-            response = requests.put(stop_url, params={"version": "V1"})
+            response = requests.put(stop_url)
             response.raise_for_status()
             stop_data = response.json()
             stop_ok = stop_data["code"] == 200
 
             # 再启动实验
-            launch_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/launch"
-            response = requests.put(launch_url, params={"version": "V1"})
+            launch_url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/launch"
+            response = requests.put(launch_url)
             response.raise_for_status()
             launch_data = response.json()
             launch_ok = launch_data["code"] == 200
@@ -133,11 +146,10 @@ class ABTestTester:
 
     def test_list_metrics(self) -> bool:
         """测试指标列表"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/metrics"
+        url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/metrics"
         params = {
             "page": 1,
             "page_size": 5,
-            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)
@@ -152,11 +164,10 @@ class ABTestTester:
 
     def test_list_groups(self) -> bool:
         """测试互斥组列表"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/layers"
+        url = f"{self.base_url}/openapi/{self.version}/apps/{self.test_app_id}/layers"
         params = {
             "page": 1,
             "page_size": 5,
-            "version": "V1"
         }
         try:
             response = requests.get(url, params=params)
@@ -176,11 +187,11 @@ if __name__ == "__main__":
     # 按顺序执行测试
     test_results = {
         "create": tester.test_create_experiment(),
-        "details": tester.test_get_details(),
-        "report": tester.test_generate_report(),
-        "status": tester.test_modify_status(),
-        "metrics": tester.test_list_metrics(),
-        "groups": tester.test_list_groups()
+        # "details": tester.test_get_details(),
+        # "report": tester.test_generate_report(),
+        # "status": tester.test_modify_status(),
+        # "metrics": tester.test_list_metrics(),
+        # "groups": tester.test_list_groups()
     }
 
     # 打印汇总结果

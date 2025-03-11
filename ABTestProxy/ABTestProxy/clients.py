@@ -1,7 +1,7 @@
 '''
 Author: ChZheng
 Date: 2025-03-05 14:53:48
-LastEditTime: 2025-03-07 06:47:12
+LastEditTime: 2025-03-10 16:40:35
 LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/clients.py
@@ -33,7 +33,7 @@ class V1Client(BaseClient):
         )
     def create_experiment(self, params: Dict) -> Dict:
         """创建实验（参数需适配V1格式）"""
-        flight_name=params['flight_name']
+        flight_name=params['name']
         duration=params['duration']
         hash_strategy=params.get('hash_strategy', 'ssid')
         app_id=params['app_id']
@@ -195,7 +195,7 @@ class V2Client(BaseClient):
     """适配config.py的V2客户端实现"""
     def __init__(self):
         super().__init__(
-            base_url=config.BASE_URLS['V2'],
+            base_url=config.BASE_URLS['2'],
             auth_type='v2'
         )
     def create_experiment(self, params: Dict) -> Dict:
@@ -281,7 +281,7 @@ class V2Client(BaseClient):
 
     def _build_url(self, endpoint_name: str,**path_params) -> str:
         """使用config配置生成完整URL"""
-        base_url = config.BASE_URLS['V2']
+        base_url = config.BASE_URLS['2']
         endpoint_template = config.API_ENDPOINTS[endpoint_name]['V2']
         return f"{base_url}/{endpoint_template.format(**path_params)}"
 

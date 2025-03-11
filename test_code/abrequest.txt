@@ -1,195 +1,276 @@
-# test_abtest_api.py
-import requests
-import json
+'''
+Author: ChZheng
+Date: 2025-02-26 06:57:14
+LastEditTime: 2025-03-10 08:51:43
+LastEditors: ChZheng
+Description:
+FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
+'''
+# ---------------------- adapters.py ----------------------
+
 from typing import Dict
+class V1Adapter():
+    """增强的V1协议适配器"""
 
-class ABTestTester:
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url
-        self.test_app_id = 1001  # 测试用应用ID
-        self.created_experiment_id = None  # 存储新建实验ID
+    @staticmethod
+    def convert_create_experiment_request(self,params: Dict) -> Dict:
+        """V1->V2 创建实验参数转换"""
+        params["hash_strategy"] = "ssid"
+        return params
 
-    def print_result(self, case_name: str, success: bool, response: Dict):
-        """统一打印测试结果"""
-        status = "成功" if success else "失败"
-        color = "\033[92m" if success else "\033[91m"
-        print(f"{color}{case_name} {status}\033[0m")
-        print("响应详情:", json.dumps(response, indent=2, ensure_ascii=False))
-        print("-" * 80)
+    @staticmethod
+    def convert_create_experiment_response(self,response: Dict) -> Dict:
+        """V2->V1 创建实验响应转换"""
+        return response
 
-    def test_create_experiment(self) -> bool:
-        """测试创建实验"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments"
-        params = {
-            "name": "端到端测试实验",
-            "mode": 1,
-            "endpoint_type": 1,
-            "duration": 7,
-            "major_metric": 29806,
-            "metrics": [29806],
-            "versions": [
-                {
-                    "type": 0,
-                    "name": "对照组",
-                    "config": {"feature_flag": "control"}
+    @staticmethod
+    def convert_get_experiment_details_request(self,params: Dict) -> Dict:
+        """V1->V2 查询实验详情参数转换"""
+        params["is_duplicate"] = False
+        return params
+
+    @staticmethod
+    def convert_get_experiment_details_response(self,response: Dict) -> Dict:
+        return {
+            "code":200,
+            "data": {
+                "id": 3799,
+                "name": "实时指标报告测试",
+                "start_ts": "2020-07-08 11:39:02",
+                "end_ts": "2021-07-08 11:39:02",
+                "owner": "203870",
+                "description": "",
+                "status": 1,
+                "type": "client",
+                "mode": 1,
+                "layer": {
+                "name": "互斥组1",
+                "status": 1,
+                "description": "LS的测试场景五实验时创建时默认层",
+                "type": "NULL"
                 },
+                "version_resource": 1.0,
+                "versions": [
                 {
-                    "type": 1,
-                    "name": "实验组",
-                    "config": {"feature_flag": "test"}
+                    "id": 8572,
+                    "name": "对照版本",
+                    "type": 0,
+                    "config": {
+                    "hello12341": False
+                    },
+                    "description": "",
+                    "weight": 30
+                },
+                # ...
+                ],
+                "metrics": [
+                {
+                    "id": 10065,
+                    "name": "测试指标",
+                    "metric_description": "测试指标描述",
+                    "type": "major",
+                    "support_conf": True,
+                    "offline": False,
+                    "dsl": {
+                    "queries": [
+                        {
+                        "show_label": "A",
+                        "event_type": "origin",
+                        "show_name": "活跃均次（pv/au）",
+                        "event_name": "predefine_pageview",
+                        "filters": [
+                            {
+                            "property_operation": "!=",
+                            "property_type": "event_param",
+                            "property_name": "title",
+                            "property_values": [
+                                "这是一个title"
+                            ]
+                            }
+                        ]
+                        },
+                        ...
+                    ],
+                    "event_relation": "A*1"
+                    },
+                    "composed": False
                 }
+                ],
+                "features": {
+                "id": -1,
+                "name": "",
+                "key": ""
+                },
+                "filter": "",
+                "whitelist": [
+                {
+                    "对照版本": [
+                    {
+                        "ssids": ["bbc33321-4352-4b95-91d1-lishanlishanlishan"],
+                        "id": 81,
+                        "is_deleted": False,
+                        "name": "李珊",
+                        "description": "",
+                        "tags": []
+                    }
+                    ]
+                }
+                ]
+            },
+            "message": "success"
+        }
+
+
+    @staticmethod
+    def convert_generate_report_request(self,params: Dict) -> Dict:
+        """V1->V2 报告请求转换"""
+        params["trace_data"] = params.get("trace_data", "")
+        return params
+    @staticmethod
+    def convert_generate_report_response(self,response: Dict) -> Dict:
+        """V2->V1 报告响应转换"""
+        return {
+        "code": 200,
+        "data": {
+            "report_type": "day", # 报告类型,day:天 hour:小时 five_minute:5分钟
+            "versions": [
+            {
+                "id": 8572, # 版本ID
+                "name": "对照版本", # 版本名称
+                "config": {
+                "hello12341": False
+                },
+                "type": 0, # 版本类型,0:对照版本 1:实验版本
+                "weight": 0  # 版本权重
+            },
             ],
-            "layer_info": {
-                "layer_id": -1,
-                "version_resource": 0.5
+            "metrics": [
+            {
+                "id": 10065,
+                "name": "测试指标",
+                "metric_description": "测试指标描述",
+                "type": "major", # 指标类型,major:核心 normal:普通
+                "support_conf": True,
+                "offline": False,
+                "composed": False
+            },
+            ...
+            ],
+            "start_ts": 1594179542, # 实验开始时间
+            "end_ts": 1597247999, # 实验结束时间
+            "user_data": {
+            "8572": 415248, # 实验总进组人数
+            "8573": 415261
+            },
+            "calculation_results": {
+            "10013": { # 指标ID
+                "8572": { # 实验版本ID,以下类似数字代表该实验相对于另一实验计算得出的值
+                "m": 1.367, #
+                "p": {
+                    "8573": -1 # -1为不存在,小于0.05则置信
+                },
+                "change": 0.09640731971910832, # 变化值
+                "change_rate": {
+                    "8573": -0.00053 # 变化率
+                },
+                "conf_interval": {
+                    "8573": [0,0] # 置信区间
+                },
+                "half_interval": {
+                    "8573": 0 # 置信区间中点
+                },
+                "confidence": {
+                    "8573": 3 # 置信情况,1:正向 2:负向 3:不置信 4:新开实验
+                            # 5:数据待更新 6:置信度无法计算 7:没有用户进组 8:已暂停
+                },
+                "mde": 0.012623757553642818 # 最小观测差值MDE(minimum detectable effect)
+                },
+                # ...
+            },
+            # ...
             }
+        },
+        "message": "success"
         }
-        try:
-            response = requests.post(url, json=params)
-            response.raise_for_status()
-            data = response.json()
-            if data["code"] == 200 and isinstance(data["data"], int):
-                self.created_experiment_id = data["data"]
-                self.print_result("1. 创建实验", True, data)
-                return True
-            self.print_result("1. 创建实验", False, data)
-            return False
-        except Exception as e:
-            print(f"创建实验异常: {str(e)}")
-            return False
 
-    def test_get_details(self) -> bool:
-        """测试获取实验详情"""
-        if not self.created_experiment_id:
-            print("未创建实验，跳过详情查询")
-            return False
 
-        url = f"{self.base_url}/openapi/v1/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/details"
-        try:
-            response = requests.get(url, params={"version": "V2"})
-            response.raise_for_status()
-            data = response.json()
-            success = data["code"] == 200 and data["data"]["id"] == self.created_experiment_id
-            self.print_result("2. 获取详情", success, data)
-            return success
-        except Exception as e:
-            print(f"获取详情异常: {str(e)}")
-            return False
 
-    def test_generate_report(self) -> bool:
-        """测试生成报告"""
-        if not self.created_experiment_id:
-            print("未创建实验，跳过报告生成")
-            return False
-
-        url = f"{self.base_url}/openapi/v1/apps/{self.test_app_id}/experiment/{self.created_experiment_id}/metrics"
-        params = {
-            "report_type": "day",
-            "start_ts": "1625097600",  # 2021-07-01
-            "end_ts": "1627689600",     # 2021-07-31
-            "version": "V2"
+    @staticmethod
+    def convert_modify_experiment_status_request(self,params: Dict) -> Dict:
+        """V1->V2 修改实验状态请求转换"""
+        return {
+            "flight_id": params["experiment_id"],
+            "action": params["action"]
         }
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            success = data["code"] == 200 and "calculation_results" in data["data"]
-            self.print_result("3. 生成报告", success, data)
-            return success
-        except Exception as e:
-            print(f"生成报告异常: {str(e)}")
-            return False
+    @staticmethod
+    def convert_modify_experiment_status_response(self,response: Dict) -> Dict:
+        """V2->V1 修改实验状态响应转换"""
+        return response
+    @staticmethod
+    def convert_list_available_metrics_request(self,params: Dict) -> Dict:
+        """V1->V2 查询可用指标请求转换"""
+        return params
+    @staticmethod
+    def convert_list_available_metrics_response(self,response: Dict) -> Dict:
+        """V2->V1 查询可用指标响应转换"""
+        return response
+    def convert_list_mutex_groups_request(self,params: Dict) -> Dict:
+        """V1->V2 查询互斥组请求转换"""
+        params["need_default"] = False
+        return params
+    def convert_list_mutex_groups_response(self,response: Dict) -> Dict:
+        """V2->V1 查询互斥组响应转换"""
+        return response
 
-    def test_modify_status(self) -> bool:
-        """测试状态修改"""
-        if not self.created_experiment_id:
-            print("未创建实验，跳过状态修改")
-            return False
 
-        # 先停止实验
-        stop_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/stop"
-        try:
-            response = requests.put(stop_url, params={"version": "V2"})
-            response.raise_for_status()
-            stop_data = response.json()
-            stop_ok = stop_data["code"] == 200
+class V2Adapter():
+    """V2透传适配器"""
 
-            # 再启动实验
-            launch_url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/experiments/{self.created_experiment_id}/launch"
-            response = requests.put(launch_url, params={"version": "V2"})
-            response.raise_for_status()
-            launch_data = response.json()
-            launch_ok = launch_data["code"] == 200
+    @staticmethod
+    def convert_create_experiment_request(self,params: Dict) -> Dict:
+        """V2不需要转换，直接透传"""
+        return params
 
-            self.print_result("4. 状态修改", stop_ok and launch_ok, {
-                "stop_response": stop_data,
-                "launch_response": launch_data
-            })
-            return stop_ok and launch_ok
-        except Exception as e:
-            print(f"状态修改异常: {str(e)}")
-            return False
+    @staticmethod
+    def convert_create_experiment_response(self,response: Dict) -> Dict:
+        return response
 
-    def test_list_metrics(self) -> bool:
-        """测试指标列表"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/metrics"
-        params = {
-            "page": 1,
-            "page_size": 5,
-            "version": "V2"
-        }
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            success = data["code"] == 200 and len(data["data"]["metrics"]) > 0
-            self.print_result("5. 指标列表", success, data)
-            return success
-        except Exception as e:
-            print(f"获取指标列表异常: {str(e)}")
-            return False
+    @staticmethod
+    def convert_get_experiment_details_request(self,params: Dict) -> Dict:
+        return params
 
-    def test_list_groups(self) -> bool:
-        """测试互斥组列表"""
-        url = f"{self.base_url}/openapi/v2/apps/{self.test_app_id}/layers"
-        params = {
-            "page": 1,
-            "page_size": 5,
-            "version": "V2"
-        }
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            success = data["code"] == 200 and isinstance(data["data"], list)
-            self.print_result("6. 互斥组列表", success, data)
-            return success
-        except Exception as e:
-            print(f"获取互斥组异常: {str(e)}")
-            return False
+    @staticmethod
+    def convert_get_experiment_details_response(self,response: Dict) -> Dict:
+        return response
 
-if __name__ == "__main__":
-    print("启动AB测试接口验证...")
-    tester = ABTestTester()
+    @staticmethod
+    def convert_generate_report_request(self,params: Dict) -> Dict:
+        return params
 
-    # 按顺序执行测试
-    test_results = {
-        "create": tester.test_create_experiment(),
-        "details": tester.test_get_details(),
-        "report": tester.test_generate_report(),
-        "status": tester.test_modify_status(),
-        "metrics": tester.test_list_metrics(),
-        "groups": tester.test_list_groups()
-    }
+    @staticmethod
+    def convert_generate_report_response(self,response: Dict) -> Dict:
+        return response
 
-    # 打印汇总结果
-    print("\n测试结果汇总:")
-    for name, result in test_results.items():
-        status = "成功" if result else "失败"
-        print(f"{name.upper().ljust(8)}: {status}")
+    @staticmethod
+    def convert_modify_experiment_status_request(self,params: Dict) -> Dict:
+        return params
 
-    print("\n操作说明:")
-    print("1. 启动服务: uvicorn app:app --reload --port 8000")
-    print("2. 确保服务运行在 http://localhost:8000")
-    print("3. 直接运行本脚本: python test_abtest_api.py")
-    print("4. 观察彩色输出结果，绿色为成功，红色为失败")
+    @staticmethod
+    def convert_modify_experiment_status_response(self,response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_list_available_metrics_request(self,params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_list_available_metrics_response(self,response: Dict) -> Dict:
+        return response
+
+    @staticmethod
+    def convert_list_mutex_groups_request(self,params: Dict) -> Dict:
+        return params
+
+    @staticmethod
+    def convert_list_mutex_groups_response(self,response: Dict) -> Dict:
+        return response
