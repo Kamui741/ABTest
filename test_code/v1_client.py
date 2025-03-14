@@ -1,10 +1,10 @@
 '''
 Author: ChZheng
 Date: 2025-02-26 08:51:59
-LastEditTime: 2025-03-05 09:08:43
+LastEditTime: 2025-03-13 10:04:08
 LastEditors: ChZheng
 Description:
-FilePath: /ABTest/ABTestProxy/ABTestProxy/v1_client.py
+FilePath: /ABTest/test_code/v1_client.py
 '''
 # ---------------------- clients/v1_client.py ----------------------
 
@@ -88,7 +88,7 @@ class V1Client(IApiClient):
 
         return step4_response
 
-    # TODO: ip改为可配置  所有的 ip 都改为可配置
+
     def get_experiment_details(self, params: Dict) -> Dict:
         """获取实验详情"""
         flight_id=params["flight_id"]
