@@ -6,6 +6,9 @@ import time
 import requests
 import logging
 from typing import Optional, Dict, Any
+
+from requests import session
+
 from config import config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -19,7 +22,6 @@ class V1AuthProvider:
         self.target_url = config.V1_TARGET_URL
         self.username = config.V1_USERNAME
         self.password = config.V1_PASSWORD
-        self._sessionid: Optional[str] = None
 
     def get_auth_headers(self) -> Dict[str, str]:
         """实现AuthProvider接口"""
@@ -36,55 +38,62 @@ class V1AuthProvider:
     def _load_sessionid(self) -> Optional[str]:
         """加载本地会话ID"""
         if not os.path.exists(self.session_file):
-            return None
+            logger.warning(logger.error(f"会话文件不存在: {self.session_file}")
+            return self._login()
         try:
             with open(self.session_file, "r") as f:
-                return f.read().strip()
+                sessionid = f.read().strip()
+                logger.info(f"加载会话ID: {sessionid}")
+                return sessionid
         except Exception as e:
             logger.error(f"加载会话文件失败: {str(e)}")
-            return None
+            return self._login()
 
     def _save_sessionid(self, sessionid: str):
         """保存会话ID到文件"""
-        try:
-            with open(self.session_file, "w") as f:
-                f.write(sessionid)
-            logger.info(f"会话ID已保存至 {self.session_file}")
-        except Exception as e:
-            logger.error(f"会话ID保存失败: {str(e)}")
+
+        with open(self.session_file, "w") as f:
+            f.write(sessionid)
+        logger.info(f"会话ID已保存至 {self.session_file}")
+
 
     def _validate_session(self, sessionid: str) -> bool:
+        headers = {"Cookie":f"sessionid={sessionid}"}
         """验证会话有效性"""
         try:
             response = requests.get(
                 self.target_url,
-                headers={"Cookie": f"sessionid={sessionid}"},
-                timeout=5
+                headers=headers
             )
-            return self._handle_response(response) is not None
+            return bool(self.handle_response(response))
         except requests.RequestException as e:
             logger.error(f"会话验证请求失败: {str(e)}")
             return False
 
-    def _handle_response(self, response: requests.Response) -> Optional[Dict]:
+    def handle_response(self, response: requests.Response) -> Optional[Dict]:
         """统一处理响应"""
         try:
-            data = response.json()
-            if response.status_code == 200 and data.get("code") == 200:
-                return data
-            logger.error(f"请求失败: {data.get('message', '未知错误')}")
+            response_data = response.json()
+        except requests.JSONDecodeError:
+            logger.error(f"响应解析失败: {response.url}")
             return None
-        except Exception as e:
-            logger.error(f"响应解析失败: {str(e)}")
+        if response.status_code!= 200:
+            logger.error(f"请求失败,状态码 {response.status_code}")
             return None
+        response_data = response.json()
+        if response_data.get("code") == 200:
+            logger.info("请求成功")
+            return response_data
+        else:
+            logger.error(f"请求失败，状态码{response_data.get('code')},信息{response_data.get('message')}")
+        return None
 
     def _login(self) -> Optional[str]:
         """执行登录流程"""
         try:
             response = requests.post(
                 self.login_url,
-                json={"email": self.username, "password": self.password},
-                timeout=10
+                json={"email": self.username, "password": self.password}
             )
             data = self._handle_response(response)
 

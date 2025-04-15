@@ -6,6 +6,7 @@ LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/adapters.py
 '''
+import time
 # ---------------------- adapters.py ----------------------
 
 from typing import Dict
@@ -29,93 +30,53 @@ class V1Adapter():
         return params
 
     def convert_get_experiment_details_response(self, response: Dict) -> Dict:
+        if response["code"]==200
+            return response
         return {
             "code": 200,
             "data": {
-                "id": 3799,
-                "name": "实时指标报告测试",
-                "start_ts": "2020-07-08 11:39:02",
-                "end_ts": "2021-07-08 11:39:02",
-                "owner": "203870",
-                "description": "",
-                "status": 1,
+                "id":response["data"]["id"],
+                "name": response["data"]["flight_name"],
+                "start_ts": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(response["data"]["start_time"])),
+                "end_ts": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(response["data"]["end_time"])),
+                "owner": response["data"]["owner"],
+                "description": response["data"]["description"],
+                "status": response["data"]["status"],
                 "type": "client",
-                "mode": 1,
-                "layer": {
-                    "name": "互斥组1",
-                    "status": 1,
-                    "description": "LS的测试场景五实验时创建时默认层",
-                    "type": "NULL"
+                "mode": response["data"]["mode"],
+                "layer":{
+                    "name": response["data"]["layer_info"]["layer_name"],
+                    "status": response["data"]["layer_info"]["layer_status"],
+                    "description": "",
+                    "type": response["data"]["layer_info"]["type"],
                 },
-                "version_resource": 1.0,
-                "versions": [
+                "version_resource": response["data"]["version_resource"],
+                "versions":[
                     {
-                        "id": 8572,
-                        "name": "对照版本",
-                        "type": 0,
-                        "config": {
-                            "hello12341": False
-                        },
-                        "description": "",
-                        "weight": 30
-                    },
-                    # ...
-                ],
-                "metrics": [
-                    {
-                        "id": 10065,
-                        "name": "测试指标",
-                        "metric_description": "测试指标描述",
-                        "type": "major",
-                        "support_conf": True,
-                        "offline": False,
-                        "dsl": {
-                            "queries": [
-                                {
-                                    "show_label": "A",
-                                    "event_type": "origin",
-                                    "show_name": "活跃均次（pv/au）",
-                                    "event_name": "predefine_pageview",
-                                    "filters": [
-                                        {
-                                            "property_operation": "!=",
-                                            "property_type": "event_param",
-                                            "property_name": "title",
-                                            "property_values": [
-                                                "这是一个title"
-                                            ]
-                                        }
-                                    ]
-                                },
-                                ...
-                            ],
-                            "event_relation": "A*1"
-                        },
-                        "composed": False
+                        "id": v["id"],
+                        "name": v["name"],
+                        "type": v["type"],
+                        "config": v["config"],
+                        "description": v["description"],
+                        "weight": v["weight"],
                     }
+                for v in response["data"]["versions"]
                 ],
-                "features": {
-                    "id": -1,
-                    "name": "",
-                    "key": ""
-                },
-                "filter": "",
-                "whitelist": [
+                "metrics":[
                     {
-                        "对照版本": [
-                            {
-                                "ssids": ["bbc33321-4352-4b95-91d1-lishanlishanlishan"],
-                                "id": 81,
-                                "is_deleted": False,
-                                "name": "李珊",
-                                "description": "",
-                                "tags": []
-                            }
-                        ]
+                        "id": m["metrics"][0]["id"],
+                        "name": m["metrics"][0]["name"],
+                        "metric_description": m["metrics"][0]["description"],
+                        "type": m["metrics"][0]["type"],
+
                     }
-                ]
+                for m in response["data"]["metrics"]
+                ],
+                "whitelist":[
+
+                ],
             },
-            "message": "success"
+            "message":"success"
         }
 
     def convert_generate_report_request(self, params: Dict) -> Dict:
@@ -125,70 +86,7 @@ class V1Adapter():
 
     def convert_generate_report_response(self, response: Dict) -> Dict:
         """V2->V1 报告响应转换"""
-        return {
-            "code": 200,
-            "data": {
-                "report_type": "day",  # 报告类型,day:天 hour:小时 five_minute:5分钟
-                "versions": [
-                    {
-                        "id": 8572,  # 版本ID
-                        "name": "对照版本",  # 版本名称
-                        "config": {
-                            "hello12341": False
-                        },
-                        "type": 0,  # 版本类型,0:对照版本 1:实验版本
-                        "weight": 0  # 版本权重
-                    },
-                ],
-                "metrics": [
-                    {
-                        "id": 10065,
-                        "name": "测试指标",
-                        "metric_description": "测试指标描述",
-                        "type": "major",  # 指标类型,major:核心 normal:普通
-                        "support_conf": True,
-                        "offline": False,
-                        "composed": False
-                    },
-                    ...
-                ],
-                "start_ts": 1594179542,  # 实验开始时间
-                "end_ts": 1597247999,  # 实验结束时间
-                "user_data": {
-                    "8572": 415248,  # 实验总进组人数
-                    "8573": 415261
-                },
-                "calculation_results": {
-                    "10013": {  # 指标ID
-                        "8572": {  # 实验版本ID,以下类似数字代表该实验相对于另一实验计算得出的值
-                            "m": 1.367,
-                            "p": {
-                                "8573": -1  # -1为不存在,小于0.05则置信
-                            },
-                            "change": 0.09640731971910832,  # 变化值
-                            "change_rate": {
-                                "8573": -0.00053  # 变化率
-                            },
-                            "conf_interval": {
-                                "8573": [0, 0]  # 置信区间
-                            },
-                            "half_interval": {
-                                "8573": 0  # 置信区间中点
-                            },
-                            "confidence": {
-                                "8573": 3  # 置信情况,1:正向 2:负向 3:不置信 4:新开实验
-                                # 5:数据待更新 6:置信度无法计算 7:没有用户进组 8:已暂停
-                            },
-                            # 最小观测差值MDE(minimum detectable effect)
-                            "mde": 0.012623757553642818
-                        },
-                        # ...
-                    },
-                    # ...
-                }
-            },
-            "message": "success"
-        }
+        return response
 
     def convert_modify_experiment_status_request(self, params: Dict) -> Dict:
         """V1->V2 修改实验状态请求转换"""
