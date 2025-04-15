@@ -6,6 +6,7 @@ LastEditors: ChZheng
 Description:
 FilePath: /ABTest/ABTestProxy/ABTestProxy/clients.py
 '''
+import json
 # ---------------------- clients.py ----------------------
 import logging
 import uuid
@@ -76,7 +77,18 @@ class V1Client(BaseClient):
         version_experiment_id = str(uuid.uuid4())
         step3_url = f"{self.base_url}/api/step3"
         step3_payload = {
-            "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3"}}}}""",
+            "versions": json.dumps([
+                {
+                    "type": v["type"],
+                    "id": v["id"],
+                    "name": v["name"],
+                    "lable": v["label"],
+                    "users":v.get("users", []),
+                    "weight": v.get("weight", 50),
+                    "config": v["config"],
+                }
+                for v in versions
+            ], ensure_ascii=False),
             "app": app_id,
             "draft_id": draft_id
         }
@@ -91,9 +103,20 @@ class V1Client(BaseClient):
             "skip_verification": False,
             "is_start": True,
             "distribute": True,
-            "versions": f"""[{{"type": 0, "id": "{version_control_id}", "label": "对照版本", "name":"对照版本","users":[],"weight":50,"config":{{"3":"3"}}}},{{"type": 1, "id": "{version_experiment_id}", "label": "实验版本", "name":"实验版本","users":[],"weight":50,"config":{{"3":"3"}}}}""",
+            "versions": json.dumps([
+                {
+                    "type": v["type"],
+                    "id": v["id"],
+                    "name": v["name"],
+                    "lable": v["label"],
+                    "users":v.get("users", []),
+                    "weight": v.get("weight", 50),
+                    "config": v["config"],
+                }
+                for v in versions
+            ], ensure_ascii=False),
             "filter_rule":"[]",
-            "layer_info":f"""{{"layer_id": -1,"version_resource":1}}""",
+            "layer_info":json.dumps(layer_info, ensure_ascii=False),
             "app": app_id,
             "draft_id": draft_id,
             "version_freeze_status":0
@@ -126,10 +149,8 @@ class V1Client(BaseClient):
         end_ts=params['end_ts']
         trace_data=params['trace_data']
 
-        url = f"{self.base_url}/datatester/api/v2/flight/view"
+        url = f"{self.base_url}/datatester/api/v2/app/{app_id}/flight/{flight_id}/rich-metric-report"
         params = {
-            "app_id": app_id,
-            "flight_id": flight_id,
             "report_type": report_type,
             "start_ts": start_ts,
             "end_ts": end_ts,
@@ -199,11 +220,6 @@ class V2Client(BaseClient):
             auth_type='v2'
         )
     def create_experiment(self, params: Dict) -> Dict:
-        required_fields = ['name', 'mode', 'app_id', 'duration',
-                         'major_metric', 'metrics', 'versions']
-        if missing := [f for f in required_fields if f not in params]:
-            return self._error_response(f"缺少必要字段: {missing}")
-
         return post_data(
             url=self._build_url('create_experiment', app_id=params['app_id']),
             json_data={

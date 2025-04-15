@@ -95,19 +95,14 @@ class V1AuthProvider:
                 self.login_url,
                 json={"email": self.username, "password": self.password}
             )
-            data = self._handle_response(response)
-
-            if data and (sessionid := response.cookies.get("sessionid")):
-                self._save_sessionid(sessionid)
-                self._sessionid = sessionid
-                logger.info("登录成功，获取到有效会话ID")
+            response_data = self.handle_response(response)
+            if response_data:
+                sessionid = response.cookies.get("sessionid")
                 return sessionid
-
-            logger.warning("登录成功但未获取到会话ID")
-            return None
-        except requests.RequestException as e:
-            logger.error(f"登录请求失败: {str(e)}")
-            return None
+            logger.warning(f"登录成功但是没找到sessionid")
+        except Exception as e:
+            logger.error(f"登录失败: {str(e)}")
+        return None
 
 class V2AuthProvider:
     """V2 AK/SK认证"""
