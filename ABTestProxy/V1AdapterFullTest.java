@@ -1,11 +1,3 @@
-/*
- * @Author: ChZheng
- * @Date: 2025-04-21 15:37:40
- * @LastEditTime: 2025-04-21 15:38:58
- * @LastEditors: ChZheng
- * @Description:
- * @FilePath: /code/ABTest/ABTestProxy/V1AdapterFullTest.java
- */
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 19:28:55
@@ -115,6 +107,7 @@ public class V1AdapterFullTest {
         assertEquals(1, ((List<?>) data.get("metrics")).size());
     }
 }
+
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 19:28:55
@@ -173,75 +166,100 @@ public class V2AdapterFullTest {
         assertEquals("v2_experiment", ((Map) result.get("data")).get("name"));
     }
 }
-/**
- * @Author: ChZheng
- * @Date: 2025-04-17 19:28:55
- * @LastEditors: ChZheng
- * @LastEditTime: 2025-04-18 16:16:47
- * @FilePath: src/test/java/com/example/abtest/auth/V1AuthFullTest.java
- * @Description:
- */
 package com.example.abtest.auth;
 
-import com.example.abtest.auth.V1Auth;
-import com.example.abtest.auth.V2Auth;
-import org.apache.commons.codec.binary.Hex;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.*;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// V1AuthFullTest.java
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
+
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 public class V1AuthFullTest {
     @Autowired
     private V1Auth auth;
 
-    @MockBean
+    @Autowired
+    private RestTemplateBuilder restTemplateBuilder; // 使用真实的RestTemplate构建器
+
+    @Value("${abtest.v1.login-url}")
+    private String loginUrl;
+
+    @Value("${abtest.v1.session-file}")
+    private String sessionFile;
+
+    private MockRestServiceServer mockServer;
     private RestTemplate restTemplate;
+
+    @BeforeEach
+    void setupMockServer() {
+        // 创建真实的RestTemplate实例
+        restTemplate = restTemplateBuilder.build();
+        auth = new V1Auth(
+                sessionFile,
+                loginUrl,
+                "${abtest.v1.target-url}",
+                "test_user",
+                "test_pass_123",
+                new RestTemplateBuilder()
+        );
+
+        mockServer = MockRestServiceServer.createServer(restTemplate);
+
+        // 配置Mock登录响应
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.add(HttpHeaders.SET_COOKIE, "sessionid=mock_session_123");
+
+        mockServer.expect(requestTo(loginUrl))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess()
+                        .headers(responseHeaders)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{}"));
+    }
 
     @Test
     void testFullAuthFlow() throws IOException {
-        // 测试完整认证流程
-        Path sessionFile = Paths.get("test_session.txt");
-        Files.deleteIfExists(sessionFile);
+        // 清理测试文件
+        Path sessionPath = Paths.get(sessionFile);
+        Files.deleteIfExists(sessionPath);
 
-        // 首次认证
-        when(restTemplate.postForEntity(anyString(), any(), any()))
-                .thenReturn(ResponseEntity.ok()
-                        .header("Set-Cookie", "sessionid=test_session_123")
-                        .body(null));
+        // 执行认证流程
+        HttpHeaders headers = auth.getHeaders();
 
-        HttpHeaders headers1 = auth.getHeaders();
-        assertTrue(headers1.containsKey("Cookie"));
+        // 验证响应头
+        assertTrue(headers.containsKey(HttpHeaders.COOKIE));
+        String cookie = headers.getFirst(HttpHeaders.COOKIE);
+        assertTrue(cookie.contains("sessionid=mock_session_123"));
 
         // 验证会话持久化
-        assertTrue(Files.exists(sessionFile));
-        assertEquals("test_session_123", Files.readString(sessionFile).trim());
+        assertTrue(Files.exists(sessionPath));
+        assertEquals("mock_session_123", Files.readString(sessionPath).trim());
 
-        // 后续请求使用缓存会话
-        HttpHeaders headers2 = auth.getHeaders();
-        assertEquals("sessionid=test_session_123", headers2.getFirst("Cookie"));
+        // 验证后续请求使用缓存会话
+        HttpHeaders cachedHeaders = auth.getHeaders();
+        assertEquals(cookie, cachedHeaders.getFirst(HttpHeaders.COOKIE));
+
+        mockServer.verify(); // 验证所有预期请求都已执行
     }
 }
-
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 19:28:55
@@ -360,23 +378,25 @@ package com.example.abtest.client; /**
  * @Author: ChZheng
  * @Date: 2025-04-17 19:28:55
  * @LastEditors: ChZheng
- * @LastEditTime: 2025-04-21 15:24:57
+ * @LastEditTime: 2025-04-21 15:53:24
  * @FilePath: src/test/java/com/example/abtest/client/V2ClientMockTest.java
  * @Description:
  */
-import com.example.abtest.client.ClientTestBase;
-import com.example.abtest.client.V2Client;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 import java.util.Map;
 
-import static org.graalvm.compiler.hotspot.nodes.type.MethodPointerStamp.method;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+import org.springframework.http.*;
+
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 
 public class V2ClientMockTest extends ClientTestBase {
     @Autowired
@@ -447,47 +467,7 @@ public class ABTestConfigFullTest {
  * @Author: ChZheng
  * @Date: 2025-04-17 19:28:55
  * @LastEditors: ChZheng
- * @LastEditTime: 2025-04-18 16:16:47
- * @FilePath: src/test/java/com/example/abtest/config/ABTestConfigFullTest.java
- * @Description:
- */
-package com.example.abtest.config;
-
-import com.example.abtest.config.ABTestConfig;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-// ABTestConfigFullTest.java
-@SpringBootTest
-@ActiveProfiles("fulltest")
-public class ABTestConfigFullTest {
-    @Autowired
-    private ABTestConfig config;
-
-    @Test
-    void testAllConfigProperties() {
-        // 验证V1配置
-        assertEquals("http://v1-mock:9090", config.getV1().getBaseUrl());
-        assertEquals("full_user", config.getV1().getUsername());
-
-        // 验证V2配置
-        assertEquals("http://v2-mock:9090", config.getV2().getBaseUrl());
-        assertEquals("full_ak", config.getV2().getAccessKey());
-
-        // 验证环境判断
-        assertTrue(config.isLocal());
-    }
-}
-/**
- * @Author: ChZheng
- * @Date: 2025-04-17 19:28:55
- * @LastEditors: ChZheng
- * @LastEditTime: 2025-04-18 16:16:47
+ * @LastEditTime: 2025-04-22 10:56:31
  * @FilePath: src/test/java/com/example/abtest/controller/ABTestControllerFullTest.java
  * @Description:
  */
@@ -507,7 +487,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import java.util.Map;
 
 // ABTestControllerFullTest.java
@@ -676,6 +656,14 @@ public class ABTestServiceFullTest {
         assertEquals(500, res.getCode());
     }
 }
+/**
+ * @Author: ChZheng
+ * @Date: 2025-04-18 10:55:05
+ * @LastEditors: ChZheng
+ * @LastEditTime: 2025-04-21 15:53:24
+ * @FilePath: src/test/java/com/example/abtest/system/FullSystemTest.java
+ * @Description:
+ */
 package com.example.abtest.system;
 
 import org.junit.jupiter.api.BeforeEach;
