@@ -309,172 +309,7 @@ public class V2Adapter implements ExperimentAdapter {
         return response; // 直接返回原始响应
     }
 }
-/**
- * @Author: ChZheng
- * @Date: 2025-04-17 05:49:07
- * @LastEditTime: 2025-04-17 07:20:25
- * @LastEditors: ChZheng
- * @Description:
- * @FilePath: src/main/java/com/example/abtest/auth/V1Auth.java
- */
-package com.example.abtest.auth;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.*;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.Map;
-
-@Slf4j
-@Component
-public class V1Auth {
-    private String sessionId;
-    private final String sessionFile;
-    private final String loginUrl;
-    private final String targetUrl;
-    private final String username;
-    private final String password;
-    private final RestTemplate restTemplate;
-
-    public V1Auth(
-            @Value("${abtest.v1.session-file}") String sessionFile,
-            @Value("${abtest.v1.login-url}") String loginUrl,
-            @Value("${abtest.v1.target-url}") String targetUrl,
-            @Value("${abtest.v1.username}") String username,
-            @Value("${abtest.v1.password}") String password,
-            RestTemplateBuilder restTemplateBuilder) {
-
-        this.sessionFile = sessionFile;
-        this.loginUrl = loginUrl;
-        this.targetUrl = targetUrl;
-        this.username = username;
-        this.password = password;
-        this.restTemplate = restTemplateBuilder
-                .setConnectTimeout(java.time.Duration.ofSeconds(10))
-                .build();
-        loadSession();
-    }
-
-    public HttpHeaders getHeaders() {
-        if (sessionId == null || !validateSession()) {
-            refreshSession();
-        }
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Cookie", "sessionid=" + sessionId);
-        return headers;
-    }
-
-    private void loadSession() {
-        try {
-            if (Files.exists(Paths.get(sessionFile))) {
-                sessionId = Files.readString(Paths.get(sessionFile)).trim();
-                log.info("Loaded session ID: {}", sessionId);
-            }
-        } catch (IOException e) {
-            log.error("Session load failed: {}", e.getMessage());
-        }
-    }
-
-    private boolean validateSession() {
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    targetUrl,
-                    HttpMethod.GET,
-                    new HttpEntity<>(getHeaders()),
-                    String.class
-            );
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private synchronized void refreshSession() {
-        try {
-            ResponseEntity<Void> response = restTemplate.postForEntity(
-                    loginUrl,
-                    Map.of("email", username, "password", password),
-                    Void.class
-            );
-
-            response.getHeaders().get("Set-Cookie").stream()
-                    .filter(c -> c.startsWith("sessionid="))
-                    .findFirst()
-                    .ifPresent(cookie -> {
-                        sessionId = cookie.split(";")[0].split("=")[1];
-                        try {
-                            Files.writeString(Paths.get(sessionFile), sessionId);
-                        } catch (IOException e) {
-                            log.error("Session save failed: {}", e.getMessage());
-                        }
-                    });
-        } catch (Exception e) {
-            log.error("V1 login failed: {}", e.getMessage());
-        }
-    }
-}
-/**
- * @Author: ChZheng
- * @Date: 2025-04-17 05:49:07
- * @LastEditTime: 2025-04-17 07:20:39
- * @LastEditors: ChZheng
- * @Description:
- * @FilePath: src/main/java/com/example/abtest/auth/V2Auth.java
- */
-package com.example.abtest.auth;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.stereotype.Component;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.util.Map;
-import org.apache.commons.codec.binary.Hex;
-
-@Slf4j
-@Component
-public class V2Auth {
-    private final String accessKey;
-    private final String secretKey;
-
-    public V2Auth(
-            @Value("${abtest.v2.access-key}") String accessKey,
-            @Value("${abtest.v2.secret-key}") String secretKey) {
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
-    }
-
-    public HttpHeaders getHeaders() {
-        long timestamp = System.currentTimeMillis() / 1000;
-        return new HttpHeaders() {{
-            add("X-Access-Key", accessKey);
-            add("X-Timestamp", String.valueOf(timestamp));
-            add("X-Signature", generateSignature(timestamp));
-        }};
-    }
-
-    private String generateSignature(long timestamp) {
-        try {
-            Mac hmac = Mac.getInstance("HmacSHA256");
-            hmac.init(new SecretKeySpec(secretKey.getBytes(), "HmacSHA256"));
-            byte[] hash = hmac.doFinal(
-                    (timestamp + "\n" + accessKey).getBytes()
-            );
-            return Hex.encodeHexString(hash);
-        } catch (Exception e) {
-            log.error("Signature generation failed: {}", e.getMessage());
-            return "";
-        }
-    }
-}
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 05:49:07
@@ -1487,3 +1322,207 @@ abtest:
     access-key: ${V2_ACCESS_KEY:default_ak}
     secret-key: ${V2_SECRET_KEY:default_sk}
 
+    package com.example.abtest.auth;
+
+    import lombok.extern.slf4j.Slf4j;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.boot.web.client.RestTemplateBuilder;
+    import org.springframework.http.*;
+    import org.springframework.stereotype.Component;
+    import org.springframework.web.client.RestTemplate;
+    import java.io.IOException;
+    import java.nio.file.*;
+    import java.util.List;
+    import java.util.Map;
+    import java.util.Optional;
+
+    @Slf4j
+    @Component
+    public class V1Auth {
+        private static final int MAX_RETRY = 3;
+        private String sessionId;
+        private final Path sessionPath;
+        private final String loginUrl;
+        private final String targetUrl;
+        private final String username;
+        private final String password;
+        private final RestTemplate restTemplate;
+
+        public V1Auth(
+                @Value("${abtest.v1.session-file:/tmp/abtest/session.txt}") String sessionFile,
+                @Value("${abtest.v1.login-url}") String loginUrl,
+                @Value("${abtest.v1.target-url}") String targetUrl,
+                @Value("${abtest.v1.username}") String username,
+                @Value("${abtest.v1.password}") String password,
+                RestTemplateBuilder restTemplateBuilder) {
+
+            this.sessionPath = Paths.get(sessionFile).toAbsolutePath();
+            this.loginUrl = loginUrl;
+            this.targetUrl = targetUrl;
+            this.username = username;
+            this.password = password;
+            this.restTemplate = restTemplateBuilder
+                    .setConnectTimeout(java.time.Duration.ofSeconds(10))
+                    .build();
+            initializeSession();
+        }
+
+        public HttpHeaders getHeaders() {
+            for (int retry = 0; retry < MAX_RETRY; retry++) {
+                try {
+                    if (sessionId == null || !validateSession()) {
+                        refreshSession();
+                    }
+                    return buildHeaders();
+                } catch (AuthException e) {
+                    log.warn("认证失败 (尝试 {}/{}): {}", retry+1, MAX_RETRY, e.getMessage());
+                }
+            }
+            throw new AuthException("超过最大重试次数(" + MAX_RETRY + "), 认证失败");
+        }
+
+        private void initializeSession() {
+            try {
+                Files.createDirectories(sessionPath.getParent());
+                if (Files.exists(sessionPath)) {
+                    sessionId = Files.readString(sessionPath).trim();
+                    log.info("加载会话文件: {}", sessionPath);
+                }
+            } catch (IOException e) {
+                log.warn("会话初始化失败: {}", e.getMessage());
+                sessionId = null;
+            }
+        }
+
+        private boolean validateSession() {
+            try {
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        targetUrl,
+                        HttpMethod.GET,
+                        new HttpEntity<>(buildHeaders()),
+                        Map.class
+                );
+
+                return response.getStatusCode().is2xxSuccessful()
+                        && "200".equals(Optional.ofNullable(response.getBody())
+                        .map(body -> body.get("code"))
+                        .orElse("").toString());
+            } catch (Exception e) {
+                log.debug("会话验证失败: {}", e.getMessage());
+                return false;
+            }
+        }
+
+        synchronized void refreshSession() {
+            try {
+                ResponseEntity<Void> response = restTemplate.postForEntity(
+                        loginUrl,
+                        Map.of("email", username, "password", password),
+                        Void.class
+                );
+
+                parseSessionCookie(response.getHeaders())
+                        .ifPresentOrElse(
+                                session -> {
+                                    sessionId = session;
+                                    saveSessionToFile();
+                                    log.info("会话刷新成功");
+                                },
+                                () -> {
+                                    throw new AuthException("登录响应中未找到有效sessionid");
+                                }
+                        );
+            } catch (Exception e) {
+                throw new AuthException("登录失败: " + e.getMessage(), e);
+            }
+        }
+
+        private Optional<String> parseSessionCookie(HttpHeaders headers) {
+            return headers.getOrDefault(HttpHeaders.SET_COOKIE, List.of()).stream()
+                    .map(String::toLowerCase)
+                    .filter(c -> c.startsWith("sessionid="))
+                    .findFirst()
+                    .map(c -> c.split(";")[0].split("=")[1]);
+        }
+
+        private void saveSessionToFile() {
+            try {
+                Files.writeString(
+                        sessionPath,
+                        sessionId,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING
+                );
+                log.debug("会话已保存至: {}", sessionPath);
+            } catch (IOException e) {
+                throw new AuthException("会话保存失败: " + e.getMessage(), e);
+            }
+        }
+
+        private HttpHeaders buildHeaders() {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.COOKIE, "sessionid=" + sessionId);
+            return headers;
+        }
+
+        public static class AuthException extends RuntimeException {
+            public AuthException(String message) { super(message); }
+            public AuthException(String message, Throwable cause) { super(message, cause); }
+        }
+    }
+    package com.example.abtest.auth;
+
+    import lombok.extern.slf4j.Slf4j;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.http.HttpHeaders;
+    import org.springframework.stereotype.Component;
+    import javax.crypto.Mac;
+    import javax.crypto.spec.SecretKeySpec;
+    import java.security.InvalidKeyException;
+    import java.security.NoSuchAlgorithmException;
+    import java.time.Instant;
+    import org.apache.commons.codec.binary.Hex;
+
+    @Slf4j
+    @Component
+    public class V2Auth {
+        private static final String HMAC_ALGORITHM = "HmacSHA256";
+        private final String accessKey;
+        private final String secretKey;
+
+        public V2Auth(
+                @Value("${abtest.v2.access-key}") String accessKey,
+                @Value("${abtest.v2.secret-key}") String secretKey) {
+            this.accessKey = accessKey;
+            this.secretKey = secretKey;
+        }
+
+        public HttpHeaders getHeaders() throws AuthException {
+            long timestamp = Instant.now().getEpochSecond();
+            return new HttpHeaders() {{
+                add("X-Access-Key", accessKey);
+                add("X-Timestamp", String.valueOf(timestamp));
+                add("X-Signature", generateSignature(timestamp));
+            }};
+        }
+
+        private String generateSignature(long timestamp) throws AuthException {
+            try {
+                Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
+                hmac.init(new SecretKeySpec(secretKey.getBytes(), HMAC_ALGORITHM));
+                byte[] hash = hmac.doFinal(
+                        (timestamp + "\n" + accessKey).getBytes()
+                );
+                return Hex.encodeHexString(hash);
+            } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                String errorMsg = "签名生成失败: " + e.getMessage();
+                log.error(errorMsg, e);
+                throw new AuthException(errorMsg, e);
+            }
+        }
+
+        public static class AuthException extends Exception {
+            public AuthException(String message) { super(message); }
+            public AuthException(String message, Throwable cause) { super(message, cause); }
+        }
+    }
