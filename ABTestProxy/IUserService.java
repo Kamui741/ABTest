@@ -1,7 +1,7 @@
 /*
  * @Author: ChZheng
  * @Date: 2025-04-18 16:30:40
- * @LastEditTime: 2025-04-25 01:34:07
+ * @LastEditTime: 2025-04-29 17:17:18
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: /code/ABTest/ABTestProxy/IUserService.java
@@ -234,14 +234,19 @@ app.name = CDHP
  * @Description:
  * @FilePath: test-service/src/main/java/com/citicbank/chdp/api/userImpl/UserServiceImpl.java
  */
+import com.citicbank.chdp.api.userInterface.IUserService;
+import reactor.core.publisher.Mono;
+
+@CrpcService(registry="chdp")
 public class UserServiceImpl implements IUserService {
+    @Override
+    public Mono<User> createUser(User user) throws BusinessException {
     if(user.getId()==111)
     {
         throw new BusinessException("用户不存在");
     }
     return Mono.just(user);
 }
-package main.java.com.citicbank.chdp.api;
 
 /**
  * @Author: ChZheng
