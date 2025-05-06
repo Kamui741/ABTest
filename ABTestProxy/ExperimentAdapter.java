@@ -1,7 +1,15 @@
+/*
+ * @Author: ChZheng
+ * @Date: 2025-04-23 05:03:17
+ * @LastEditTime: 2025-05-07 06:20:50
+ * @LastEditors: ChZheng
+ * @Description:
+ * @FilePath: /code/ABTest/ABTestProxy/V1AdapterFullTest.java
+ */
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 15:59:31
+ * @LastEditTime: 2025-05-06 16:44:19
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/adapter/ExperimentAdapter.java
@@ -12,7 +20,7 @@
  import java.util.Map;
 
  public interface ExperimentAdapter {
-     // 补充所有必要的方法声明
+     // 原有方法保持不变
      Map<String, Object> convertCreateExperimentRequest(Map<String, Object> params);
      Map<String, Object> convertCreateExperimentResponse(Map<String, Object> response);
      Map<String, Object> convertGetDetailsRequest(Map<String, Object> params);
@@ -25,11 +33,16 @@
      Map<String, Object> convertListMetricsResponse(Map<String, Object> response);
      Map<String, Object> convertListGroupsRequest(Map<String, Object> params);
      Map<String, Object> convertListGroupsResponse(Map<String, Object> response);
+
+     // 新增实验列表方法
+     Map<String, Object> convertListExperimentsRequest(Map<String, Object> params);
+     Map<String, Object> convertListExperimentsResponse(Map<String, Object> response);
  }
+
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 15:59:51
+ * @LastEditTime: 2025-05-06 17:13:28
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/adapter/V1Adapter.java
@@ -44,6 +57,7 @@
 
  import java.text.SimpleDateFormat;
  import java.util.*;
+ import java.util.stream.Collectors;
 
  @Component
  public class V1Adapter implements ExperimentAdapter {
@@ -198,113 +212,275 @@
      public Map<String, Object> convertListGroupsResponse(Map<String, Object> response) {
          return response;
      }
- }
-/**
- * @Author: ChZheng
- * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 15:59:56
- * @LastEditors: ChZheng
- * @Description:
- * @FilePath: src/main/java/com/example/abtest/adapter/V2Adapter.java
- */
 
- package com.example.abtest.adapter;
-
- import com.fasterxml.jackson.databind.ObjectMapper;
- import org.springframework.stereotype.Component;
-
- import java.util.Collections;
- import java.util.HashMap;
- import java.util.Map;
-
- @Component
- public class V2Adapter implements ExperimentAdapter {
-     // 使用 Java 8 兼容的 ObjectMapper 声明方式
-     private static final ObjectMapper mapper = new ObjectMapper();
-
-     // ==== 实验创建 ==== (保持参数透传逻辑)
      @Override
-     public Map<String, Object> convertCreateExperimentRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
+     public Map<String, Object> convertListExperimentsRequest(Map<String, Object> params) {
+         Map<String, Object> request = new HashMap<>();
+         request.put("app_id", params.get("app_id"));
+         request.put("status", mapStatusV1(params.get("status")));
+         request.put("keyword", params.get("keyword"));
+         request.put("page", params.get("page"));
+         request.put("page_size", params.get("page_size"));
+         return request;
      }
 
      @Override
-     public Map<String, Object> convertCreateExperimentResponse(Map<String, Object> response) {
-         return deepCopy(response); // 使用安全的深拷贝
+     public Map<String, Object> convertListExperimentsResponse(Map<String, Object> response) {
+         if (!"200".equals(String.valueOf(response.get("code")))) return response;
+
+         Map<String, Object> data = (Map<String, Object>) response.get("data");
+         List<Map<String, Object>> experiments = new ArrayList<>();
+
+         for (Map<String, Object> item : (List<Map<String, Object>>) data.get("list")) {
+             Map<String, Object> exp = new HashMap<>();
+             exp.put("id", item.get("flight_id"));
+             exp.put("name", item.get("flight_name"));
+             exp.put("status", convertStatusV1(item.get("status")));
+             exp.put("start_time", item.get("start_time"));
+             exp.put("end_time", item.get("end_time"));
+             experiments.add(exp);
+         }
+
+         Map<String, Object> newData = new HashMap<>();
+         newData.put("experiments", experiments);
+         newData.put("page", buildPageInfo(data));
+
+         response.put("data", newData);
+         return response;
      }
 
-     // ==== 实验详情 ==== (保持透传逻辑)
-     @Override
-     public Map<String, Object> convertGetDetailsRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
+     private Map<String, Object> buildPageInfo(Map<String, Object> data) {
+         Map<String, Object> page = new HashMap<>();
+         page.put("current_page", data.get("current_page"));
+         page.put("total_pages", data.get("total_page"));
+         page.put("total_items", data.get("total_count"));
+         return page;
+     }
+     private Integer mapStatusV1(Object status) {
+         if (status == null) return null;
+
+         // 文档v2状态到V1系统的映射
+         switch (status.toString()) {
+             case "0": return 3;  // 已结束 -> V1状态3
+             case "1": return 1;   // 运行中 -> V1状态1
+             case "3": return 2;   // 调试中 -> V1状态2
+             default: return null; // 默认不过滤
+         }
      }
 
-     @Override
-     public Map<String, Object> convertGetDetailsResponse(Map<String, Object> response) {
-         return deepCopy(response);
-     }
+     private Integer convertStatusV1(Object status) {
+         if (status == null) return null;
 
-     // ==== 报告生成 ==== (保持透传逻辑)
-     @Override
-     public Map<String, Object> convertGenerateReportRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
-     }
-
-     @Override
-     public Map<String, Object> convertGenerateReportResponse(Map<String, Object> response) {
-         return deepCopy(response);
-     }
-
-     // ==== 状态修改 ==== (保持透传逻辑)
-     @Override
-     public Map<String, Object> convertModifyStatusRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
-     }
-
-     @Override
-     public Map<String, Object> convertModifyStatusResponse(Map<String, Object> response) {
-         return deepCopy(response);
-     }
-
-     // ==== 指标列表 ==== (保持透传逻辑)
-     @Override
-     public Map<String, Object> convertListMetricsRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
-     }
-
-     @Override
-     public Map<String, Object> convertListMetricsResponse(Map<String, Object> response) {
-         return deepCopy(response);
-     }
-
-     // ==== 互斥组 ==== (保持透传逻辑)
-     @Override
-     public Map<String, Object> convertListGroupsRequest(Map<String, Object> params) {
-         return new HashMap<>(params);
-     }
-
-     @Override
-     public Map<String, Object> convertListGroupsResponse(Map<String, Object> response) {
-         return deepCopy(response);
-     }
-
-     // 安全的深拷贝方法（Java 8 兼容）
-     private Map<String, Object> deepCopy(Map<String, Object> source) {
-         try {
-             // 使用 Jackson 实现安全的跨版本序列化
-             return mapper.readValue(
-                     mapper.writeValueAsString(source),
-                     mapper.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class)
-             );
-         } catch (Exception e) {
-             return Collections.emptyMap(); // 安全返回空集合
+         // V1系统状态到文档v2的映射
+         switch (status.toString()) {
+             case "3": return 0;  // V1状态3 -> 已结束
+             case "1": return 1;  // V1状态1 -> 运行中
+             case "2": return 3;  // V1状态2 -> 调试中
+             default: return -1;  // 未知状态
          }
      }
  }
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:00
+ * @LastEditTime: 2025-05-06 16:58:33
+ * @LastEditors: ChZheng
+ * @Description:
+ * @FilePath: src/main/java/com/example/abtest/adapter/V2Adapter.java
+ */
+package com.example.abtest.adapter;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Component;
+
+import java.util.*;
+
+@Component
+public class V2Adapter implements ExperimentAdapter {
+    private static final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public Map<String, Object> convertCreateExperimentRequest(Map<String, Object> params) {
+        Map<String, Object> request = new HashMap<>();
+
+        // 必填字段
+        request.put("name", params.get("name"));
+        request.put("endpoint_type", params.get("endpoint_type"));
+        request.put("duration", params.get("duration"));
+        request.put("major_metric", params.get("major_metric"));
+        request.put("metrics", params.get("metrics"));
+        request.put("versions", convertVersions(params.get("versions")));
+        request.put("layer_info", params.get("layer_info"));
+
+        // 新增v2字段
+        putIfNotNull(request, params, "tags");
+        putIfNotNull(request, params, "user_group_filter_rules");
+        putIfNotNull(request, params, "manage_sub_type");
+        putIfNotNull(request, params, "mab_info");
+
+        return request;
+    }
+
+    @Override
+    public Map<String, Object> convertCreateExperimentResponse(Map<String, Object> response) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertGetDetailsRequest(Map<String, Object> params) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertGetDetailsResponse(Map<String, Object> response) {
+        Map<String, Object> data = deepCopy(response);
+        if (data.containsKey("experiment")) {
+            Map<String, Object> exp = (Map) data.get("experiment");
+
+            // 字段映射
+            exp.put("launch_start_time", exp.get("start_time"));
+            exp.put("test_start_time", exp.get("debug_start_time"));
+
+            // 转换指标结构
+            exp.put("metrics", convertMetrics((List<Map>) exp.get("metrics")));
+        }
+        return data;
+    }
+
+    @Override
+    public Map<String, Object> convertGenerateReportRequest(Map<String, Object> params) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertGenerateReportResponse(Map<String, Object> response) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertModifyStatusRequest(Map<String, Object> params) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertModifyStatusResponse(Map<String, Object> response) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertListMetricsRequest(Map<String, Object> params) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertListMetricsResponse(Map<String, Object> response) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertListGroupsRequest(Map<String, Object> params) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertListGroupsResponse(Map<String, Object> response) {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, Object> convertListExperimentsRequest(Map<String, Object> params) {
+        Map<String, Object> request = new HashMap<>();
+        request.put("status", params.get("status"));
+        request.put("keyword", params.get("keyword"));
+        request.put("page", params.getOrDefault("page", 1));
+        request.put("page_size", params.getOrDefault("page_size", 99));
+        request.put("sort_by", params.get("sort_by"));
+        request.put("sort_order", params.get("sort_order"));
+        return request;
+    }
+
+    @Override
+    public Map<String, Object> convertListExperimentsResponse(Map<String, Object> response) {
+        Map<String, Object> data = deepCopy(response);
+        if (data.containsKey("data")) {
+            Map<String, Object> newData = new HashMap<>();
+            Map<String, Object> originalData = (Map) data.get("data");
+
+            // 转换实验列表
+            List<Map<String, Object>> experiments = new ArrayList<>();
+            for (Map<String, Object> exp : (List<Map>) originalData.get("experiments")) {
+                Map<String, Object> converted = new HashMap<>();
+                converted.put("id", exp.get("id"));
+                converted.put("name", exp.get("name"));
+                converted.put("status", exp.get("status"));
+                converted.put("launch_start_time", exp.get("launch_start_time"));
+                converted.put("end_time", exp.get("end_time"));
+                experiments.add(converted);
+            }
+            newData.put("experiments", experiments);
+
+            // 分页信息
+            Map<String, Object> page = new HashMap<>();
+            page.put("current_page", originalData.get("page.current_page"));
+            page.put("total_pages", originalData.get("page.total_pages"));
+            page.put("total_items", originalData.get("page.total_items"));
+            newData.put("page", page);
+
+            data.put("data", newData);
+        }
+        return data;
+    }
+
+    // 辅助方法
+    private List<Map<String, Object>> convertVersions(Object versions) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> v : (List<Map>) versions) {
+            Map<String, Object> version = new HashMap<>();
+            version.put("type", v.get("type"));
+            version.put("name", v.get("name"));
+            version.put("weight", v.get("weight"));
+            version.put("config", v.get("config"));
+            version.put("is_mab", v.get("is_mab"));
+            result.add(version);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> convertMetrics(List<Map> metrics) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> m : metrics) {
+            Map<String, Object> metric = new HashMap<>();
+            metric.put("id", m.get("id"));
+            metric.put("name", m.get("name"));
+            metric.put("description", m.get("description"));
+            metric.put("is_primary", "1".equals(m.get("is_primary")) ? 1 : 0);
+            result.add(metric);
+        }
+        return result;
+    }
+
+    private void putIfNotNull(Map<String, Object> target, Map<String, Object> source, String key) {
+        if (source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
+    // 保持原有的deepCopy方法
+    private Map<String, Object> deepCopy(Map<String, Object> source) {
+        try {
+            return mapper.readValue(mapper.writeValueAsString(source),
+                    new TypeReference<HashMap<String, Object>>(){});
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
+    }
+}
+
+/**
+ * @Author: ChZheng
+ * @Date: 2025-04-17 09:20:47
+ * @LastEditTime: 2025-04-29 16:00:03
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/auth/V1Auth.java
@@ -465,7 +641,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:05
+ * @LastEditTime: 2025-04-29 16:00:09
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/auth/V2Auth.java
@@ -537,7 +713,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:14
+ * @LastEditTime: 2025-05-06 16:58:33
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/client/ExperimentClient.java
@@ -561,12 +737,14 @@
      default Map<String, Object> notImplemented() {
          throw new UnsupportedOperationException("方法未实现");
      }
+
+     Map<String, Object> listExperiments(Map<String, Object> convertedParams);
  }
 
 /**
  * @Author: ChZheng
  * @Date: 2025-04-28 19:04:14
- * @LastEditTime: 2025-04-29 16:00:18
+ * @LastEditTime: 2025-04-29 16:00:20
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/client/RestClientUtils.java
@@ -685,7 +863,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:49:27
+ * @LastEditTime: 2025-05-06 16:58:33
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/client/V1Client.java
@@ -845,6 +1023,11 @@
                  .queryParam("need_default", params.get("need_default")));
      }
 
+     @Override
+     public Map<String, Object> listExperiments(Map<String, Object> convertedParams) {
+         return Collections.emptyMap();
+     }
+
      private Map<String, Object> executeRequest(RestClientUtils.RequestContext context) {
          return RestClientUtils.executeRequest(restTemplate, baseUrl, authProvider.getHeaders(), context);
      }
@@ -913,11 +1096,10 @@
      }
 
  }
-
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:28
+ * @LastEditTime: 2025-04-29 16:00:30
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/client/V2Client.java
@@ -1022,6 +1204,12 @@
                  .queryParam("page_size", params.get("page_size")));
      }
 
+     @Override
+     public Map<String, Object> listExperiments(Map<String, Object> convertedParams) {
+         return Collections.emptyMap();
+     }
+
+
      private Map<String, Object> executeRequest(RestClientUtils.RequestContext context) throws V2Auth.AuthException {
          return RestClientUtils.executeRequest(restTemplate, baseUrl, authProvider.getHeaders(), context);
      }
@@ -1064,7 +1252,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-24 16:55:51
- * @LastEditTime: 2025-04-29 16:00:32
+ * @LastEditTime: 2025-04-29 16:00:34
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/config/ABTestConfig.java
@@ -1172,7 +1360,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:36
+ * @LastEditTime: 2025-04-29 16:00:38
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/config/RestTemplateConfig.java
@@ -1200,148 +1388,220 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:41
+ * @LastEditTime: 2025-05-06 16:58:33
  * @LastEditors: ChZheng
- * @Description:
+ * @Description: 统一POST接口重构
  * @FilePath: src/main/java/com/example/abtest/controller/ABTestController.java
  */
+package com.example.abtest.controller;
 
- package com.example.abtest.controller;
+import com.example.abtest.model.ResponseResult;
+import com.example.abtest.service.ABTestService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
 
- import com.example.abtest.model.ResponseResult;
- import com.example.abtest.service.ABTestService;
- import org.springframework.beans.factory.annotation.Autowired;
- import org.springframework.web.bind.annotation.*;
+import java.util.HashMap;
+import java.util.Map;
 
- import java.util.HashMap;
- import java.util.Map;
+@RestController
+@RequestMapping("/openapi")
+public class ABTestController {
+    private final ABTestService abTestService;
 
- @RestController
- @RequestMapping("/openapi")
- public class ABTestController {
-     private final ABTestService abTestService;
+    @Autowired
+    public ABTestController(ABTestService abTestService) {
+        this.abTestService = abTestService;
+    }
 
-     @Autowired
-     public ABTestController(ABTestService abTestService) {
-         this.abTestService = abTestService;
-     }
+    // 1. 创建实验
+    @PostMapping("/{version}/apps/experiments")
+    public ResponseResult createExperiment(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.putAll(body);
+        return abTestService.createExperiment(params);
+    }
 
-     // 创建实验
-     @PostMapping("/{version}/apps/{appId}/experiments")
-     public ResponseResult createExperiment(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @RequestBody Map<String, Object> body) {
+    // 2. 获取实验详情
+    @PostMapping("/{version}/apps/experiment/details")
+    public ResponseResult getExperimentDetails(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("experiment_id", body.get("experiment_id"));
+        return abTestService.getExperimentDetails(params);
+    }
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase()); // 统一转小写
-         params.put("app_id", appId);
-         params.putAll(body);
+    // 3. 生成实验报告
+    @PostMapping("/{version}/apps/experiment/metrics")
+    public ResponseResult generateReport(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("experiment_id", body.get("experiment_id"));
+        params.put("report_type", body.get("report_type"));
+        params.put("start_ts", body.get("start_ts"));
+        params.put("end_ts", body.get("end_ts"));
+        params.put("filters", body.get("filters"));
+        return abTestService.generateReport(params);
+    }
 
-         return abTestService.createExperiment(params);
-     }
+    // 4. 修改实验状态
+    @PostMapping("/{version}/apps/experiment/status")
+    public ResponseResult modifyExperimentStatus(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("experiment_id", body.get("experiment_id"));
+        params.put("action", body.get("action")); // launch/stop
+        return abTestService.modifyExperimentStatus(params);
+    }
 
-     // 获取实验详情
-     @GetMapping("/{version}/apps/{appId}/experiment/{experimentId}/details")
-     public ResponseResult getExperimentDetails(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @PathVariable Long experimentId) {
+    // 5. 获取指标列表
+    @PostMapping("/{version}/apps/metrics")
+    public ResponseResult listMetrics(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("keyword", body.get("keyword"));
+        params.put("status", body.get("status"));
+        params.put("page", body.getOrDefault("page", 1));
+        params.put("page_size", body.getOrDefault("page_size", 99));
+        return abTestService.listAvailableMetrics(params);
+    }
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase());
-         params.put("app_id", appId);
-         params.put("experiment_id", experimentId);
+    // 6. 获取互斥组列表
+    @PostMapping("/{version}/apps/layers")
+    public ResponseResult listMutexGroups(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("keyword", body.get("keyword"));
+        params.put("endpoint_type", body.get("endpoint_type"));
+        params.put("page", body.getOrDefault("page", 1));
+        params.put("page_size", body.getOrDefault("page_size", 99));
+        return abTestService.listMutexGroups(params);
+    }
 
-         return abTestService.getExperimentDetails(params);
-     }
+    // 7. 获取实验列表（新增接口）
+    @PostMapping("/{version}/apps/experiments/list")
+    public ResponseResult listExperiments(
+            @PathVariable String version,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("version", version.toLowerCase());
+        params.put("app_id", body.get("app_id"));
+        params.put("status", body.get("status"));
+        params.put("keyword", body.get("keyword"));
+        params.put("page", body.getOrDefault("page", 1));
+        params.put("page_size", body.getOrDefault("page_size", 99));
+        params.put("sort_by", body.get("sort_by"));
+        params.put("sort_order", body.get("sort_order"));
+        return abTestService.listExperiments(params);
+    }
+}
+/**
+ * @Author: ChZheng
+ * @Date: 2025-05-06 11:18:17
+ * @LastEditTime: 2025-05-06 17:10:08
+ * @LastEditors: ChZheng
+ * @Description:
+ * @FilePath: src/main/java/com/example/abtest/crpc/ExperimentCrpcService.java
+ */
+package com.example.abtest.crpc;
 
-     // 生成实验报告
-     @GetMapping("/{version}/apps/{appId}/experiment/{experimentId}/metrics")
-     public ResponseResult generateReport(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @PathVariable Long experimentId,
-             @RequestParam String reportType,
-             @RequestParam String startTs,
-             @RequestParam String endTs,
-             @RequestParam(required = false) String filters) {
+import com.example.abtest.model.ResponseResult;
+import java.util.Map;
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase());
-         params.put("app_id", appId);
-         params.put("experiment_id", experimentId);
-         params.put("report_type", reportType);
-         params.put("start_ts", startTs);
-         params.put("end_ts", endTs);
-         params.put("filters", filters);
+public interface ExperimentCrpcService {
+    ResponseResult createExperiment(String version, Map<String, Object> params);
+    ResponseResult getExperimentDetails(String version, Map<String, Object> params);
+    ResponseResult generateReport(String version, Map<String, Object> params);
+    ResponseResult modifyStatus(String version, Map<String, Object> params);
+    ResponseResult listMetrics(String version, Map<String, Object> params);
+    ResponseResult listGroups(String version, Map<String, Object> params);
+    ResponseResult listExperiments(String version, Map<String, Object> params);
+}
+/**
+ * @Author: ChZheng
+ * @Date: 2025-05-06 11:16:18
+ * @LastEditTime: 2025-05-06 17:10:08
+ * @LastEditors: ChZheng
+ * @Description:
+ * @FilePath: src/main/java/com/example/abtest/crpc/ExperimentCrpcServiceImpl.java
+ */
+package com.example.abtest.crpc;
 
-         return abTestService.generateReport(params);
-     }
+import com.example.abtest.model.ResponseResult;
+import com.example.abtest.service.ABTestService;
+import com.citicbank.crpc.annotation.CrpcService;
+import java.util.Map;
 
-     // 修改实验状态
-     @PutMapping("/{version}/apps/{appId}/experiments/{experimentId}/{action}")
-     public ResponseResult modifyExperimentStatus(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @PathVariable Long experimentId,
-             @PathVariable String action) {
+@CrpcService(interfaceClass = ExperimentCrpcService.class, version = "1.0.0")
+public class ExperimentCrpcServiceImpl implements ExperimentCrpcService {
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase());
-         params.put("app_id", appId);
-         params.put("experiment_id", experimentId);
-         params.put("action", action.toLowerCase()); // 统一转小写
+    private final ABTestService abTestService;
 
-         return abTestService.modifyExperimentStatus(params);
-     }
+    public ExperimentCrpcServiceImpl(ABTestService abTestService) {
+        this.abTestService = abTestService;
+    }
 
-     // 获取指标列表
-     @GetMapping("/{version}/apps/{appId}/metrics")
-     public ResponseResult listMetrics(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @RequestParam(required = false) String keyword,
-             @RequestParam(defaultValue = "1") int page,
-             @RequestParam(defaultValue = "10") int pageSize,
-             @RequestParam(defaultValue = "1") int needPage) {
+    // 统一参数处理方法
+    private Map<String, Object> buildParams(String version, Map<String, Object> params) {
+        params.put("version", version);
+        return params;
+    }
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase());
-         params.put("app_id", appId);
-         params.put("keyword", keyword);
-         params.put("page", page);
-         params.put("page_size", pageSize);
-         params.put("need_page", needPage);
+    @Override
+    public ResponseResult createExperiment(String version, Map<String, Object> params) {
+        return abTestService.createExperiment(buildParams(version, params));
+    }
 
-         return abTestService.listAvailableMetrics(params);
-     }
+    @Override
+    public ResponseResult getExperimentDetails(String version, Map<String, Object> params) {
+        return abTestService.getExperimentDetails(buildParams(version, params));
+    }
 
-     // 获取互斥组列表
-     @GetMapping("/{version}/apps/{appId}/layers")
-     public ResponseResult listMutexGroups(
-             @PathVariable String version,
-             @PathVariable Long appId,
-             @RequestParam(required = false) String keyword,
-             @RequestParam(defaultValue = "1") int page,
-             @RequestParam(defaultValue = "10") int pageSize,
-             @RequestParam(defaultValue = "1") int needPage) {
+    @Override
+    public ResponseResult generateReport(String version, Map<String, Object> params) {
+        return abTestService.generateReport(buildParams(version, params));
+    }
 
-         Map<String, Object> params = new HashMap<>();
-         params.put("version", version.toLowerCase());
-         params.put("app_id", appId);
-         params.put("keyword", keyword);
-         params.put("page", page);
-         params.put("page_size", pageSize);
-         params.put("need_page", needPage);
+    @Override
+    public ResponseResult modifyStatus(String version, Map<String, Object> params) {
+        return abTestService.modifyExperimentStatus(buildParams(version, params));
+    }
 
-         return abTestService.listMutexGroups(params);
-     }
- }
+    @Override
+    public ResponseResult listMetrics(String version, Map<String, Object> params) {
+        return abTestService.listAvailableMetrics(buildParams(version, params));
+    }
+
+    @Override
+    public ResponseResult listGroups(String version, Map<String, Object> params) {
+        return abTestService.listMutexGroups(buildParams(version, params));
+    }
+    @Override
+    public ResponseResult listExperiments(String version, Map<String, Object> params) {
+        return abTestService.listExperiments(buildParams(version, params));
+    }
+}
 /**
  * @Author: ChZheng
  * @Date: 2025-04-17 09:20:47
- * @LastEditTime: 2025-04-29 16:00:45
+ * @LastEditTime: 2025-04-29 16:00:47
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/model/ResponseResult.java
@@ -1374,7 +1634,7 @@
 /**
  * @Author: ChZheng
  * @Date: 2025-04-24 16:55:51
- * @LastEditTime: 2025-04-29 16:00:49
+ * @LastEditTime: 2025-05-06 16:58:33
  * @LastEditors: ChZheng
  * @Description:
  * @FilePath: src/main/java/com/example/abtest/service/ABTestService.java
@@ -1497,164 +1757,17 @@
          });
      }
 
+     public ResponseResult listExperiments(Map<String, Object> params) {
+         return executeServiceCall(params, "实验列表查询", (adapter, client) ->{
+             Map<String, Object> convertedParams = adapter.convertListExperimentsRequest(params);
+             Map<String, Object> response = client.listExperiments(convertedParams);
+             return ResponseResult.success(adapter.convertListExperimentsResponse(response));
+         });
+     }
+
      // 函数式接口封装
      @FunctionalInterface
      private interface ServiceFunction {
          ResponseResult apply(ExperimentAdapter adapter, ExperimentClient client) throws Exception;
      }
  }
-/**
- * @Author: ChZheng
- * @Date: 2025-04-24 16:55:51
- * @LastEditTime: 2025-04-29 16:00:53
- * @LastEditors: ChZheng
- * @Description:
- * @FilePath: src/main/java/com/example/abtest/AbtestApplication.java
- */
-
- package com.example.abtest;
-
- import org.springframework.boot.SpringApplication;
- import org.springframework.boot.autoconfigure.SpringBootApplication;
-
- @SpringBootApplication
- public class AbtestApplication {
-     public static void main(String[] args) {
-         SpringApplication.run(AbtestApplication.class, args);
-     }
- }
- ###
- # @Author: ChZheng
- # @Date: 2025-04-24 16:55:51
- # @LastEditTime: 2025-04-29 16:00:57
- # @LastEditors: ChZheng
- # @Description:
- # @FilePath: src/main/resources/application.yml
-###
-
-# 所有环境的公共配置
-spring:
-  profiles:
-    active: test
-
-abtest:
-  env: ${SPRING_PROFILES_ACTIVE:test}  # 环境标识
-  active-version: v1                  # 全局版本控制
-
-  # V1默认配置（所有环境共用）
-  v1:
-    base-url: ${V1_BASE_URL:http://default-v1.example.com}
-    session-file: ${V1_SESSION_FILE:/tmp/session.txt}
-    login-url: ${V1_LOGIN_URL:http://default-v1.login}
-    target-url: ${V1_TARGET_URL:http://default-v1.target}
-    username: ${V1_USERNAME:default_user}
-    password: ${V1_PASSWORD:default_pass}
-
-  # V2默认配置（所有环境共用）
-  v2:
-    base-url: ${V2_BASE_URL:http://default-v2.example.com}
-    access-key: ${V2_ACCESS_KEY:default_ak}
-    secret-key: ${V2_SECRET_KEY:default_sk}
-###
- # @Author: ChZheng
- # @Date: 2025-04-17 09:20:47
- # @LastEditTime: 2025-04-29 16:02:32
- # @LastEditors: ChZheng
- # @Description:
- # @FilePath: src/main/resources/application-test.yml
-###
-
-# application-test.yml
-spring:
-  config:
-    activate:
-      on-profile: test
-
-abtest:
-  env: test
-  active-version: v1
-
-  v1:
-    base-url: http://localhost:9091  # 与mock端口一致
-    session-file: abtest-session.tmp  # 使用临时文件
-    login-url: ${abtest.v1.base-url}/api/login
-    target-url: ${abtest.v1.base-url}/api/ping
-    username: test_user
-    password: test_pass_123
-
-  v2:
-    base-url: http://localhost:9092
-    access-key: test_ak_123  # 固定测试密钥
-    secret-key: test_sk_456
-
-  mock:
-    servers:
-      v1:
-        port: 9091
-        endpoints:
-          - path: /api/login
-            response: >
-              {
-                "code":200,
-                "data":{},
-                "headers":{
-                  "Set-Cookie": "sessionid=test_session_123; Path=/"
-                }
-              }
-      v2:
-        port: 9092
-        endpoints:
-          - path: /openapi/v2/.*
-            response-file: classpath:mock/v2/success-template.json
-
-    ###
- # @Author: ChZheng
- # @Date: 2025-04-17 09:20:47
- # @LastEditTime: 2025-04-29 16:02:32
- # @LastEditors: ChZheng
- # @Description:
- # @FilePath: src/main/resources/application-test.yml
-###
-
-# application-test.yml
-spring:
-  config:
-    activate:
-      on-profile: test
-
-abtest:
-  env: test
-  active-version: v1
-
-  v1:
-    base-url: http://localhost:9091  # 与mock端口一致
-    session-file: abtest-session.tmp  # 使用临时文件
-    login-url: ${abtest.v1.base-url}/api/login
-    target-url: ${abtest.v1.base-url}/api/ping
-    username: test_user
-    password: test_pass_123
-
-  v2:
-    base-url: http://localhost:9092
-    access-key: test_ak_123  # 固定测试密钥
-    secret-key: test_sk_456
-
-  mock:
-    servers:
-      v1:
-        port: 9091
-        endpoints:
-          - path: /api/login
-            response: >
-              {
-                "code":200,
-                "data":{},
-                "headers":{
-                  "Set-Cookie": "sessionid=test_session_123; Path=/"
-                }
-              }
-      v2:
-        port: 9092
-        endpoints:
-          - path: /openapi/v2/.*
-            response-file: classpath:mock/v2/success-template.json
